@@ -1,6 +1,6 @@
 # Use the official Microsoft Playwright image as the base
-# This image comes pre-installed with all necessary system libraries for Chromium, Firefox, and WebKit
-FROM mcr.microsoft.com/playwright:v1.49.0-jammy
+# We upgrade to v1.50.1-jammy to ensure Node.js is >= 22.12 (Prisma 7.7.0 requirement)
+FROM mcr.microsoft.com/playwright:v1.50.1-jammy
 
 # 1. Use the pre-existing Playwright user (UID 1000) for Hugging Face compatibility
 # The base image already has 'pwuser' with UID 1000.
@@ -16,7 +16,7 @@ WORKDIR $HOME/app
 
 # 3. Copy package files and install dependencies
 # We use --chown=pwuser:pwuser to ensure the non-root user owns these files
-COPY --chown=pwuser:pwuser package*.json ./
+COPY --chown=pwuser:pwuser package*.json package-lock.json* ./
 RUN npm ci
 
 # 4. Copy the rest of the application code
