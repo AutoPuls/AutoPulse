@@ -123,12 +123,28 @@ export async function scrapeLocalMarketplace(
   console.log(`[local-scraper] Searching ${location}...`);
 
   try {
-    await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
+    await page.goto(url, { waitUntil: 'load', timeout: 60000 });
+    
+    // --- DIAGNOSTICS ---
+    const finalUrl = page.url();
+    const pageTitle = await page.title();
+    console.log(`[local-scraper] Current URL: ${finalUrl}`);
+    console.log(`[local-scraper] Page Title: ${pageTitle}`);
+
+    if (finalUrl.includes("/login/") || pageTitle.includes("Log In") || pageTitle.includes("Connexion")) {
+        console.warn(`[local-scraper] ⚠️ REDIRECTED TO LOGIN. Facebook is blocking this IP.`);
+    }
     
     // 2. Scroll to load more (Infinite Scroll logic with Modal Bypass)
     const scrollSteps = Math.max(1, Number(process.env.LOCAL_SCROLL_STEPS ?? 25));
-    const scrollDelayMs = Math.max(250, Number(process.env.LOCAL_SCROLL_DELAY_MS ?? 1200));
+    const scrollDelayMs = Math.max(500, Number(process.env.LOCAL_SCROLL_DELAY_MS ?? 1500));
     
+    // Wait for at least one listing or a timeout
+    console.log(`[local-scraper] Waiting for listing grid items...`);
+    await page.waitForSelector('a[href*="/marketplace/item/"]', { timeout: 15000 }).catch(() => {
+        console.warn(`[local-scraper] Timed out waiting for items selector. Proceeding with scroll cycle...`);
+    });
+
     console.log(`[local-scraper] Starting robust infinite scroll for ${scrollSteps} steps...`);
     
     for (let i = 0; i < scrollSteps; i++) {
