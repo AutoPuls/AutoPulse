@@ -108,12 +108,33 @@ async function runDiagnostics(): Promise<boolean> {
   return allOk;
 }
 
+async function purgeJunkEntries(): Promise<void> {
+    try {
+        console.log("[workers] Purging historical junk (Marketplace Listing / 0 Price)...");
+        const { count } = await prisma.listing.deleteMany({
+            where: {
+                OR: [
+                    { rawTitle: { contains: "Marketplace Listing" } },
+                    { price: 0 },
+                    { description: { contains: "Use Facebook app" } }
+                ]
+            }
+        });
+        if (count > 0) console.log(`[workers] ✅ Purged ${count} junk listings.`);
+    } catch (e) {
+        console.error("[workers] Failed to purge junk entries:", e);
+    }
+}
+
 async function triggerInitialJobs(): Promise<void> {
   const healthy = await runDiagnostics();
   if (!healthy) {
     console.warn("[workers] Skipping initial jobs due to connection issues.");
     return;
   }
+
+  // Self-heal: Remove the old junk data that the user reported
+  await purgeJunkEntries();
   
   console.log("[workers] Triggering initial startup jobs...");
   try {
