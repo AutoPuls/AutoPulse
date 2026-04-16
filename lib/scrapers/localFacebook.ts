@@ -230,15 +230,37 @@ export async function scrapeLocalMarketplace(
             const tileText = (el.textContent || el.parentElement?.textContent || "").replace(/\n/g, " ").trim();
             const ariaLabel = (el.getAttribute('aria-label') || "").trim();
             
-            // JUNK FILTER: Ignore non-vehicle links (Apps, Login, etc.)
-            const lowerText = tileText.toLowerCase();
-            if (lowerText.includes("facebook app") || lowerText.includes("log in") || lowerText.includes("open app") || lowerText.includes("marketplace ›") || tileText.length < 5) {
+            // STRICT VEHICLE FILTER: Must have a price symbol ($) and be at least 15 chars long
+            if (!tileText.includes("$") && !ariaLabel.includes("$")) {
                 return null;
             }
 
-            // Clean Title: Remove price tag from the start
+            // JUNK FILTER: Ignore non-vehicle links (Apps, Login, etc.)
+            const combinedText = (tileText + " " + ariaLabel).toLowerCase();
+            if (combinedText.includes("facebook app") || combinedText.includes("log in") || combinedText.includes("open app") || combinedText.includes("marketplace ›") || combinedText.length < 10) {
+                return null;
+            }
+
+            // Advanced image detection (Recursive search up/down)
+            let imageUrl: string | null = null;
+            const findImg = (root: Element): string | null => {
+                const img = root.querySelector("img");
+                if (img && img.src && !img.src.includes("data:image")) return img.src;
+                
+                const bg = root.querySelector('[style*="background-image"]');
+                if (bg) {
+                    const urlMatch = (bg as HTMLElement).style.backgroundImage.match(/url\("?(.+?)"?\)/);
+                    if (urlMatch) return urlMatch[1];
+                }
+                return null;
+            };
+
+            imageUrl = findImg(el) || findImg(el.parentElement as Element) || (el.closest('div') ? findImg(el.closest('div') as Element) : null);
+            
+            // Clean Title: Remove price tag and "Just Listed" stuff
             let cleanTitle = ariaLabel || tileText;
             cleanTitle = cleanTitle.replace(/^[\$£€][\d,kK\s]+/, '').trim();
+            cleanTitle = cleanTitle.replace(/just listed/i, '').trim();
 
             return {
                 externalId,
