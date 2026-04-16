@@ -172,7 +172,7 @@ export async function scrapeLocalMarketplace(
             const img = a.querySelector("img");
             
             // Clean up mashed text from the grid
-            const tileText = (a.innerText || "").replace(/\n/g, " ").trim();
+            const tileText = (a.textContent || "").replace(/\n/g, " ").trim();
             const ariaLabel = (a.getAttribute('aria-label') || "").trim();
 
             return {
