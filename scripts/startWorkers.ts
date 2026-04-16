@@ -76,5 +76,20 @@ cron.schedule("0 0 * * *", async () => {
   }
 });
 
+async function triggerInitialJobs(): Promise<void> {
+  console.log("[workers] Triggering initial startup jobs...");
+  try {
+    await getScrapeQueue().add("scrapeAll", {}, { priority: 1 });
+    console.log("[workers] Initial scrape job queued");
+    
+    await getNotificationsQueue().add("checkAlerts", {});
+    console.log("[workers] Initial checkAlerts job queued");
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[workers] Failed to trigger initial jobs:", msg);
+  }
+}
+
 logStartup();
 startHealthCheckServer();
+triggerInitialJobs().catch(console.error);
