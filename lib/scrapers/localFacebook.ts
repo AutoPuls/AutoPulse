@@ -134,10 +134,12 @@ export async function scrapeLocalMarketplace(
     const finalUrl = page.url();
     const pageTitle = await page.title();
     // Wait for the body to actually have some content (Facebook Marketplace is JS heavy)
-    await page.waitForFunction(() => document.body.innerText.length > 500, { timeout: 30000 }).catch(() => {
-        console.warn(`[local-scraper] Body still lacks content after 30s. Content length: ${bodySnippet.length}`);
-    });
     const bodySnippet = await page.evaluate(() => document.body.innerText.substring(0, 500).replace(/\n/g, ' '));
+    if (bodySnippet.length < 500) {
+        await page.waitForFunction(() => document.body.innerText.length > 500, { timeout: 30000 }).catch(() => {
+            console.warn(`[local-scraper] Body still lacks content after 30s.`);
+        });
+    }
     console.log(`[local-scraper] Current URL: ${finalUrl}`);
     console.log(`[local-scraper] Page Title: ${pageTitle}`);
     console.log(`[local-scraper] Page Snippet length: ${bodySnippet.length}`);
@@ -180,7 +182,7 @@ export async function scrapeLocalMarketplace(
           });
           
           // 2. SCROLL Strategy: Mobile friendly scroll
-          const items = document.querySelectorAll('a[href*="/marketplace/item/"]');
+          const items = document.querySelectorAll('a[href*="/marketplace/item/"], [role="link"]');
           if (items.length > 0) {
               items[items.length - 1].scrollIntoView({ behavior: 'smooth' });
           } else {
@@ -192,8 +194,8 @@ export async function scrapeLocalMarketplace(
 
         
         if (i % 5 === 0) {
-          const count = await page.evaluate(() => document.querySelectorAll('a[href*="/marketplace/item/"]').length);
-          console.log(`[local-scraper] Scroll step ${i}: found ${count} items so far.`);
+          const count = await page.evaluate(() => document.querySelectorAll('a[href*="/marketplace/item/"], [role="link"]').length);
+          console.log(`[local-scraper] Scroll step ${i}: found ${count} candidate items so far.`);
         }
     }
 
@@ -228,6 +230,12 @@ export async function scrapeLocalMarketplace(
             const tileText = (el.textContent || el.parentElement?.textContent || "").replace(/\n/g, " ").trim();
             const ariaLabel = (el.getAttribute('aria-label') || "").trim();
             
+            // JUNK FILTER: Ignore non-vehicle links (Apps, Login, etc.)
+            const lowerText = tileText.toLowerCase();
+            if (lowerText.includes("facebook app") || lowerText.includes("log in") || lowerText.includes("open app") || lowerText.includes("marketplace ›") || tileText.length < 5) {
+                return null;
+            }
+
             // Clean Title: Remove price tag from the start
             let cleanTitle = ariaLabel || tileText;
             cleanTitle = cleanTitle.replace(/^[\$£€][\d,kK\s]+/, '').trim();
