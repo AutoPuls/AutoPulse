@@ -132,8 +132,10 @@ export async function scrapeLocalMarketplace(
     // --- DIAGNOSTICS ---
     const finalUrl = page.url();
     const pageTitle = await page.title();
+    const bodySnippet = await page.evaluate(() => document.body.innerText.substring(0, 300).replace(/\n/g, ' '));
     console.log(`[local-scraper] Current URL: ${finalUrl}`);
     console.log(`[local-scraper] Page Title: ${pageTitle}`);
+    console.log(`[local-scraper] Page Snippet: ${bodySnippet}`);
 
     if (finalUrl.includes("/login/") || pageTitle.includes("Log In") || pageTitle.includes("Connexion")) {
         console.warn(`[local-scraper] ⚠️ REDIRECTED TO LOGIN. Facebook is blocking this IP.`);
@@ -192,18 +194,18 @@ export async function scrapeLocalMarketplace(
     // 3. Extract IDs and basic data from the grid
     const listings = await page.evaluate(() => {
         // Broad selector: any 'a' tag linking to an item
-        const items = Array.from(document.querySelectorAll('a[href*="/marketplace/item/"]'));
+        const allLinks = Array.from(document.querySelectorAll('a'));
         
-        // Filter out those with no text OR no image (likely not listing tiles)
-        const validItems = items.filter(a => {
-            const hasImg = a.querySelector('img') !== null;
-            const hasText = (a.textContent || '').trim().length > 5;
-            return hasImg || hasText;
+        const marketplaceLinks = allLinks.filter(a => {
+            const href = a.getAttribute('href') || '';
+            return href.includes('/marketplace/item/');
         });
 
-        return validItems.map(a => {
+        return marketplaceLinks.map(a => {
             const href = a.getAttribute('href') || '';
-            const idMatch = href.match(/\/item\/(\d+)/);
+            const idMatch = href.match(/\/item\/(\d{10,20})/);
+            const externalId = idMatch ? idMatch[1] : null;
+
             const img = a.querySelector("img");
             
             // Clean up mashed text from the grid
@@ -211,8 +213,8 @@ export async function scrapeLocalMarketplace(
             const ariaLabel = (a.getAttribute('aria-label') || "").trim();
 
             return {
-                externalId: idMatch ? idMatch[1] : href,
-                url: href.startsWith('http') ? href : `https://www.facebook.com${href}`,
+                externalId,
+                url: href.startsWith('http') ? href : `https://m.facebook.com${href}`,
                 imageUrl: img?.src || null,
                 title: ariaLabel || tileText.substring(0, 100),
                 tileText
