@@ -132,6 +132,7 @@ export function ListingDetailModal({
         if (retryTimer) clearTimeout(retryTimer);
       };
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [listing.id]);
 
   const hasParsedName =

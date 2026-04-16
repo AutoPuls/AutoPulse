@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { getQueue } from "@/lib/queue";
+import { getReparseQueue } from "@/lib/queue";
 
 export async function POST() {
   try {
-    const reparseQueue = getQueue("reparse");
+    const reparseQueue = getReparseQueue();
     await reparseQueue.add("reparseAll", {}, { 
       removeOnComplete: true,
       jobId: "globalReparse" // Ensure only one runs at a time

@@ -60,3 +60,13 @@ export function getAlertMatchQueue(): Queue {
   }
   return alertMatchQueue;
 }
+
+export function getReparseQueue(): Queue {
+  if (!scrapeQueue) {
+    scrapeQueue = new Queue("reparse", {
+      connection: getRedisConnection(),
+      defaultJobOptions: defaultJobRetries,
+    });
+  }
+  return scrapeQueue;
+}
