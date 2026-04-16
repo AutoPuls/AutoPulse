@@ -254,7 +254,7 @@ export async function scrapeLocalMarketplace(
                 updatedAt: new Date(),
             },
             create: {
-                externalId: item.externalId,
+                externalId: item.externalId as string,
                 source: "facebook",
                 make: parsed.make || "Unknown",
                 model: parsed.model || "Unknown",
