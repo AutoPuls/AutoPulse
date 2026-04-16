@@ -20,8 +20,8 @@ export function parseTilePriceToCents(text: string): number {
   const cleanText = text.replace(/\u00A0/g, " ");
   const candidates: { val: number, multiplier: number, index: number }[] = [];
 
-  // Pattern 1: $1,234 (Prefix)
-  const symbolRegex = /([\$£€])\s*([\d\s,]+)(?:\s*([kK]))?/g;
+  // Pattern 1: $1,234 (Prefix) - Now strictly stops at first space to avoid merging with Year
+  const symbolRegex = /([\$£€])\s*([\d,]+(?:\.\d{2})?)(?:\s*([kK]))?/g;
   for (const m of cleanText.matchAll(symbolRegex)) {
     const symbol = m[1];
     const val = parseRawMoneyToken(m[2] || "", Boolean(m[3]));
@@ -212,15 +212,31 @@ export async function scrapeLocalMarketplace(
 
             if (!externalId) return null;
 
-            const img = el.querySelector("img") || el.parentElement?.querySelector("img");
+            // Advanced image detection (Img tag or Background-image style)
+            let imageUrl: string | null = null;
+            const img = el.querySelector("img") || el.parentElement?.querySelector("img") || el.querySelector('[style*="background-image"]');
+            if (img) {
+                if (img.tagName === "IMG") {
+                    imageUrl = (img as HTMLImageElement).src;
+                } else {
+                    const style = (img as HTMLElement).style.backgroundImage;
+                    const urlMatch = style.match(/url\("?(.+?)"?\)/);
+                    imageUrl = urlMatch ? urlMatch[1] : null;
+                }
+            }
+            
             const tileText = (el.textContent || el.parentElement?.textContent || "").replace(/\n/g, " ").trim();
             const ariaLabel = (el.getAttribute('aria-label') || "").trim();
+            
+            // Clean Title: Remove price tag from the start
+            let cleanTitle = ariaLabel || tileText;
+            cleanTitle = cleanTitle.replace(/^[\$£€][\d,kK\s]+/, '').trim();
 
             return {
                 externalId,
                 url: href.startsWith('http') ? href : `https://m.facebook.com${href}`,
-                imageUrl: img?.src || null,
-                title: ariaLabel || tileText.substring(0, 100),
+                imageUrl: imageUrl,
+                title: cleanTitle.substring(0, 100),
                 tileText
             };
         }).filter((x): x is NonNullable<typeof x> => x !== null && x.externalId !== null);
@@ -236,6 +252,8 @@ export async function scrapeLocalMarketplace(
 
     if (listings.length === 0) {
         console.warn(`[local-scraper] No items found for ${location}. Facebook may be blocking or page didn't load.`);
+    } else {
+        console.log(`[local-scraper] Extracted sample item: PriceParsed=${parseTilePriceToCents(listings[0].tileText)} Title="${listings[0].title}" Img=${listings[0].imageUrl?.substring(0, 50)}...`);
     }
 
     let upserted = 0;
