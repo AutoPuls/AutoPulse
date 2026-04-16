@@ -202,69 +202,52 @@ export async function scrapeLocalMarketplace(
     // 3. Extract IDs and basic data from the grid
     // 3. Extract IDs and basic data from the grid
     const listings = await page.evaluate(() => {
-        // Broad search: Anything that could be a link
-        const elements = Array.from(document.querySelectorAll('a, [role="link"], [href]'));
-        
-        console.log(`[local-eval] Total elements found: ${elements.length}`);
+        // Broad search for anything that looks like a listing card (usually divs or articles)
+        const candidates = Array.from(document.querySelectorAll('div, a, [role="link"]'));
+        const results = [];
+        const seenIds = new Set();
 
-        const results = elements.map(el => {
-            const href = el.getAttribute('href') || el.getAttribute('data-href') || '';
-            const idMatch = href.match(/\/item\/(\d{10,20})/) || href.match(/(\d{14,18})/);
-            const externalId = idMatch ? idMatch[1] : null;
-
-            if (!externalId) return null;
-
-            const tileText = (el.textContent || el.parentElement?.textContent || "").replace(/\n/g, " ").trim();
-            const ariaLabel = (el.getAttribute('aria-label') || "").trim();
+        for (const el of candidates) {
+            const text = (el.textContent || "").trim();
+            // Core signal: A valid car listing MUST have a price starting with $
+            if (!text.includes("$") || text.toLowerCase().includes("free") || text.length < 20) continue;
             
-            // STRICT VEHICLE FILTER: Must have a price symbol ($) and be at least 15 chars long
-            if (!tileText.includes("$") && !ariaLabel.includes("$")) {
-                return null;
-            }
+            // Find the nearest link to get the ID
+            const linkEl = el.tagName === "A" ? el : el.querySelector('a') || el.closest('a') || el.closest('[role="link"]');
+            if (!linkEl) continue;
 
-            // JUNK FILTER: Ignore non-vehicle links (Apps, Login, etc.)
-            const combinedText = (tileText + " " + ariaLabel).toLowerCase();
-            if (combinedText.includes("facebook app") || combinedText.includes("log in") || combinedText.includes("open app") || combinedText.includes("marketplace ›") || combinedText.length < 10) {
-                return null;
-            }
+            const href = linkEl.getAttribute('href') || linkEl.getAttribute('data-href') || '';
+            const idMatch = href.match(/\/item\/(\d{10,20})/) || href.match(/(\d{14,18})/);
+            const externalId = idMatch ? idMatch[1] : null; if (!externalId || seenIds.has(externalId)) continue;
 
-            // Advanced image detection (Recursive search up/down)
-            let imageUrl: string | null = null;
+            // Image detection
             const findImg = (root: Element): string | null => {
                 const img = root.querySelector("img");
-                if (img && img.src && !img.src.includes("data:image")) return img.src;
-                
+                if (img && img.src && img.src.startsWith('http') && !img.src.includes('static')) return img.src;
                 const bg = root.querySelector('[style*="background-image"]');
                 if (bg) {
                     const urlMatch = (bg as HTMLElement).style.backgroundImage.match(/url\("?(.+?)"?\)/);
-                    if (urlMatch) return urlMatch[1];
+                    if (urlMatch && urlMatch[1].startsWith('http')) return urlMatch[1];
                 }
                 return null;
             };
+            const imageUrl = findImg(el) || findImg(linkEl);
 
-            imageUrl = findImg(el) || findImg(el.parentElement as Element) || (el.closest('div') ? findImg(el.closest('div') as Element) : null);
-            
-            // Clean Title: Remove price tag and "Just Listed" stuff
-            let cleanTitle = ariaLabel || tileText;
-            cleanTitle = cleanTitle.replace(/^[\$£€][\d,kK\s]+/, '').trim();
-            cleanTitle = cleanTitle.replace(/just listed/i, '').trim();
+            const ariaLabel = (linkEl.getAttribute('aria-label') || "").trim();
+            let cleanTitle = ariaLabel || text.split("$")[1]?.substring(0, 100).trim() || text.substring(0, 100);
+            // Remove junk from title
+            cleanTitle = cleanTitle.replace(/^[\d,kK\s]+/, '').replace(/just listed/i, '').trim();
 
-            return {
+            results.push({
                 externalId,
                 url: href.startsWith('http') ? href : `https://m.facebook.com${href}`,
                 imageUrl: imageUrl,
-                title: cleanTitle.substring(0, 100),
-                tileText
-            };
-        }).filter((x): x is NonNullable<typeof x> => x !== null && x.externalId !== null);
-
-        // Deduplicate by ID
-        const seen = new Set();
-        return results.filter(item => {
-            if (seen.has(item.externalId)) return false;
-            seen.add(item.externalId);
-            return true;
-        });
+                title: cleanTitle,
+                tileText: text
+            });
+            seenIds.add(externalId);
+        }
+        return results;
     });
 
     if (listings.length === 0) {
