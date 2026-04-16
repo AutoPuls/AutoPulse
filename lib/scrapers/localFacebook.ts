@@ -127,14 +127,20 @@ export async function scrapeLocalMarketplace(
   console.log(`[local-scraper] Searching ${location}...`);
 
   try {
-    await page.goto(url, { waitUntil: 'load', timeout: 60000 });
+    await page.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
     
+    // --- DIAGNOSTICS ---
     // --- DIAGNOSTICS ---
     const finalUrl = page.url();
     const pageTitle = await page.title();
-    const bodySnippet = await page.evaluate(() => document.body.innerText.substring(0, 300).replace(/\n/g, ' '));
+    // Wait for the body to actually have some content (Facebook Marketplace is JS heavy)
+    await page.waitForFunction(() => document.body.innerText.length > 500, { timeout: 30000 }).catch(() => {
+        console.warn(`[local-scraper] Body still lacks content after 30s. Content length: ${bodySnippet.length}`);
+    });
+    const bodySnippet = await page.evaluate(() => document.body.innerText.substring(0, 500).replace(/\n/g, ' '));
     console.log(`[local-scraper] Current URL: ${finalUrl}`);
     console.log(`[local-scraper] Page Title: ${pageTitle}`);
+    console.log(`[local-scraper] Page Snippet length: ${bodySnippet.length}`);
     console.log(`[local-scraper] Page Snippet: ${bodySnippet}`);
 
     if (finalUrl.includes("/login/") || pageTitle.includes("Log In") || pageTitle.includes("Connexion")) {
@@ -143,7 +149,7 @@ export async function scrapeLocalMarketplace(
     
     // 2. Scroll to load more (Infinite Scroll logic with Modal Bypass)
     const scrollSteps = Math.max(1, Number(process.env.LOCAL_SCROLL_STEPS ?? 25));
-    const scrollDelayMs = Math.max(500, Number(process.env.LOCAL_SCROLL_DELAY_MS ?? 1500));
+    const scrollDelayMs = Math.max(1000, Number(process.env.LOCAL_SCROLL_DELAY_MS ?? 2500));
     
     // Wait for at least one listing or a timeout
     console.log(`[local-scraper] Waiting for mobile listing items...`);
