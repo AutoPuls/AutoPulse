@@ -198,10 +198,6 @@ export async function scrapeLocalMarketplace(
     }
 
     // 3. Extract IDs and basic data from the grid
-    const listings = await page.evaluate(() => {
-        // Broad selector: any 'a' tag linking to an item
-        const allLinks = Array.from(document.querySelectorAll('a'));
-        
     // 3. Extract IDs and basic data from the grid
     const listings = await page.evaluate(() => {
         // Broad search: Anything that could be a link
