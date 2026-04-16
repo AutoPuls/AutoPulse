@@ -2,28 +2,28 @@
 # This image comes pre-installed with all necessary system libraries for Chromium, Firefox, and WebKit
 FROM mcr.microsoft.com/playwright:v1.49.0-jammy
 
-# 1. Create a non-root user (UID 1000) for Hugging Face compatibility
-RUN useradd -m -u 1000 user
-ENV HOME=/home/user
+# 1. Use the pre-existing Playwright user (UID 1000) for Hugging Face compatibility
+# The base image already has 'pwuser' with UID 1000.
+ENV HOME=/home/pwuser
 ENV PATH=$HOME/.local/bin:$PATH
 
 # 2. Set up writable paths for Playwright browsers
-# Hugging Face runs containers as non-root, so we need a writable home directory.
+# Hugging Face runs containers as non-root, so we use the built-in pwuser's home.
 ENV PLAYWRIGHT_BROWSERS_PATH=$HOME/pw-browsers
 
 # Set the working directory
 WORKDIR $HOME/app
 
 # 3. Copy package files and install dependencies
-# We use --chown=1000:1000 to ensure the non-root user owns these files
-COPY --chown=user package*.json ./
+# We use --chown=pwuser:pwuser to ensure the non-root user owns these files
+COPY --chown=pwuser:pwuser package*.json ./
 RUN npm ci
 
 # 4. Copy the rest of the application code
-COPY --chown=user . .
+COPY --chown=pwuser:pwuser . .
 
-# 5. Switch to our new user before generating Prisma client or installing browsers
-USER user
+# 5. Switch to the built-in pwuser before generating Prisma client or installing browsers
+USER pwuser
 
 # Generate the Prisma client
 RUN npx prisma generate
