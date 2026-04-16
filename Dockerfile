@@ -11,21 +11,25 @@ ENV PATH=$HOME/.local/bin:$PATH
 # Hugging Face runs containers as non-root, so we use the built-in pwuser's home.
 ENV PLAYWRIGHT_BROWSERS_PATH=$HOME/pw-browsers
 
+# 3. Initialize app directory and ensure non-root ownership (as root)
+# This prevents EACCES errors when creating subdirectories (like .prisma) in node_modules later.
+RUN mkdir -p $HOME/app && chown -R pwuser:pwuser $HOME
+
 # Set the working directory
 WORKDIR $HOME/app
 
-# 3. Copy package files and install dependencies
+# Switch to the non-privileged user before doing anything else
+USER pwuser
+
+# 4. Copy package files and install dependencies (as pwuser)
 # We use --chown=pwuser:pwuser to ensure the non-root user owns these files
 COPY --chown=pwuser:pwuser package*.json package-lock.json* ./
 RUN npm ci
 
-# 4. Copy the rest of the application code
+# 5. Copy the rest of the application code
 COPY --chown=pwuser:pwuser . .
 
-# 5. Switch to the built-in pwuser before generating Prisma client or installing browsers
-USER pwuser
-
-# Generate the Prisma client
+# 6. Generate the Prisma client
 # We provide a placeholder DATABASE_URL because the build environment lacks the real secret,
 # and Prisma 7.7.0+ config validation requires it to be present.
 RUN DATABASE_URL=postgresql://dummy:dummy@localhost:5432/dummy npx prisma generate
