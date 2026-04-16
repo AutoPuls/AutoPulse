@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parseListingText } from "@/lib/parser/listingParser";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   try {
     const q = req.nextUrl.searchParams.get("q");

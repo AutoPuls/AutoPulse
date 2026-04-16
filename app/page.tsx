@@ -51,7 +51,9 @@ export default async function HomePage(): Promise<ReactElement> {
             <div className="mx-auto mt-12 max-w-3xl relative z-20">
               <div className="absolute -inset-1 rounded-[2.5rem] bg-gradient-to-r from-primary/20 via-cyber-purple/20 to-primary/20 opacity-50 blur-lg" />
               <div className="relative glass shadow-[0_0_50px_rgba(0,216,255,0.15)] rounded-[2.5rem] p-3 border border-black/10 dark:border-white/10 bg-background/50 backdrop-blur-2xl">
-                <SmartSearchBar />
+                <React.Suspense fallback={<div className="h-[60px] w-full animate-pulse bg-primary/5 rounded-2xl" />}>
+                  <SmartSearchBar />
+                </React.Suspense>
               </div>
             </div>
 
