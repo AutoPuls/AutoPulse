@@ -114,8 +114,8 @@ export async function scrapeLocalMarketplace(
 ) {
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
-    userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
-    viewport: { width: 390, height: 844 },
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    viewport: { width: 1280, height: 900 },
     extraHTTPHeaders: {
       'Referer': 'https://www.google.com/',
       'Accept-Language': 'en-US,en;q=0.9',
@@ -123,7 +123,7 @@ export async function scrapeLocalMarketplace(
   });
   const page = await context.newPage();
 
-  const url = `https://m.facebook.com/marketplace/${location}/vehicles?sortBy=creation_time_descend&exact=false`;
+  const url = `https://www.facebook.com/marketplace/${location}/vehicles?sortBy=creation_time_descend&exact=false`;
   console.log(`[local-scraper] Searching ${location}...`);
 
     try {
@@ -218,9 +218,10 @@ export async function scrapeLocalMarketplace(
     const listings: ListingRaw[] = [];
     const seenIds = new Set<string>();
 
-    // --- Strategy 1: Find /item/NNNNN/ anywhere in the raw HTML ---
-    // This covers href attrs, JSON data, og:url, canonical, etc.
-    const itemIdPattern = /\/item\/(\d{10,21})\//g;
+    // --- Strategy 1: Find /item/NNNNN anywhere in the raw HTML ---
+    // Desktop FB uses href="/marketplace/item/123456" (no trailing slash) or in JSON blobs
+    // The (?=[^\d]) lookahead ensures we don't grab partial numbers
+    const itemIdPattern = /\/item\/(\d{10,21})(?=[^\d])/g;
     let idMatch: RegExpExecArray | null;
     while ((idMatch = itemIdPattern.exec(rawHtml)) !== null) {
         const externalId = idMatch[1];
