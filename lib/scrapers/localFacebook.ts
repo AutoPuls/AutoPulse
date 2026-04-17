@@ -207,18 +207,15 @@ export async function scrapeLocalMarketplace(
     }
 
     // 3. Extract IDs and basic data from the grid
-    // 3. Extract IDs and basic data from the grid
     const listings = await page.evaluate(() => {
         // Helper: find the best image URL from an element or its descendants/ancestors
         function findImg(el: Element | null): string | null {
             if (!el) return null;
-            // Direct img tag
             const img = el.tagName === 'IMG' ? el as HTMLImageElement : el.querySelector('img');
             if (img) {
                 const src = img.getAttribute('src') || img.getAttribute('data-src') || img.getAttribute('data-lazy-src');
                 if (src && !src.startsWith('data:') && src.length > 10) return src;
             }
-            // Background image via style
             const bgEl = el.querySelector('[style*="background-image"]') as HTMLElement | null;
             if (bgEl) {
                 const match = bgEl.style.backgroundImage.match(/url\(["']?(.*?)["']?\)/);
@@ -227,48 +224,94 @@ export async function scrapeLocalMarketplace(
             return null;
         }
 
-        // Broad search for anything that looks like a listing card (usually divs or articles)
-        const candidates = Array.from(document.querySelectorAll('div, a, [role="link"]'));
-        const results = [];
-        const seenIds = new Set();
+        const results: { externalId: string; url: string; imageUrl: string | null; title: string; tileText: string }[] = [];
+        const seenIds = new Set<string>();
 
-        for (const el of candidates) {
-            const text = (el.textContent || "").trim();
-            // Core signal: A valid car listing MUST have a price starting with $
-            if (!text.includes("$") || text.toLowerCase().includes("free") || text.length < 20) continue;
-            
-            // Find the nearest link to get the ID
-            const linkEl = el.tagName === "A" ? el : el.querySelector('a') || el.closest('a') || el.closest('[role="link"]');
-            if (!linkEl) continue;
+        // --- Strategy 1: Target marketplace item links directly ---
+        // On mobile FB, item links look like /marketplace/item/123456789012/ or /item/123456789012/
+        const itemLinks = Array.from(document.querySelectorAll<HTMLAnchorElement>(
+            'a[href*="/item/"], a[href*="marketplace/item"]'
+        ));
 
-            const href = linkEl.getAttribute('href') || linkEl.getAttribute('data-href') || '';
-            const idMatch = href.match(/\/item\/(\d{10,21})/) || href.match(/(\d{14,21})/) || text.match(/item\/(\d{10,21})/);
-            const externalId = idMatch ? idMatch[1] : null; if (!externalId || seenIds.has(externalId)) continue;
+        console.log(`[local-eval] Found ${itemLinks.length} raw item links`);
 
-            const htmlEl = el as HTMLElement;
-            const imageUrl = findImg(el) || findImg(linkEl) || (htmlEl.offsetParent ? findImg(htmlEl.offsetParent) : null);
+        // Diagnostic: log first few hrefs to understand URL format
+        itemLinks.slice(0, 5).forEach(a => console.log(`[local-eval] href sample: ${a.getAttribute('href')}`));
 
-            const ariaLabel = (linkEl.getAttribute('aria-label') || "").trim();
-            // Clean Title: Get everything after the $ but before the location
-            let cleanTitle = ariaLabel || text.split("$")[1]?.replace(/^[\d,kK\s]+/, '').trim() || text.substring(0, 100);
-            
-            // Refined cleaner for "2015 Honda Civic · ..."
+        for (const linkEl of itemLinks) {
+            const href = linkEl.getAttribute('href') || '';
+            const idMatch = href.match(/\/item\/(\d{10,21})/);
+            if (!idMatch) continue;
+            const externalId = idMatch[1];
+            if (seenIds.has(externalId)) continue;
+
+            // Walk UP the DOM to find the card container (has price text)
+            let card: Element = linkEl;
+            for (let i = 0; i < 6; i++) {
+                if (!card.parentElement) break;
+                card = card.parentElement;
+                if ((card.textContent || '').includes('$')) break;
+            }
+
+            const text = (card.textContent || linkEl.textContent || '').trim();
+            if (!text.includes('$')) continue;
+
+            const imageUrl = findImg(card) || findImg(linkEl);
+            const ariaLabel = (linkEl.getAttribute('aria-label') || '').trim();
+
+            let cleanTitle = ariaLabel || text.split('$')[1]?.replace(/^[\d,kK\s]+/, '').trim() || text.substring(0, 100);
             cleanTitle = cleanTitle.split('\n')[0].split('·')[0].split('  ')[0].trim();
-            
-            // JUNK CHECK: If title is still generic, skip
-            if (cleanTitle.toLowerCase().includes("marketplace listing") || cleanTitle.length < 5) continue;
+            if (cleanTitle.toLowerCase().includes('marketplace listing') || cleanTitle.length < 5) continue;
 
-            console.log(`[local-eval] Matched Car: ${cleanTitle} (ID: ${externalId})`);
-
+            console.log(`[local-eval] Matched: "${cleanTitle}" (ID: ${externalId})`);
             results.push({
                 externalId,
                 url: `https://www.facebook.com/marketplace/item/${externalId}/`,
                 imageUrl,
                 title: cleanTitle.substring(0, 100),
-                tileText: text
+                tileText: text,
             });
             seenIds.add(externalId);
         }
+
+        // --- Strategy 2: Fallback — extract IDs from embedded page JSON ---
+        if (results.length === 0) {
+            console.log('[local-eval] Strategy 1 found nothing, trying embedded JSON...');
+            const allScripts = Array.from(document.querySelectorAll('script'));
+            for (const script of allScripts) {
+                const src = script.textContent || '';
+                // FB embeds listing data in require() or __bbox chunks
+                const idMatches = [...src.matchAll(/"id"\s*:\s*"(\d{14,21})"/g)];
+                for (const m of idMatches) {
+                    const externalId = m[1];
+                    if (seenIds.has(externalId)) continue;
+
+                    // Try to extract a title near this ID in the JSON blob
+                    const idIdx = src.indexOf(`"${externalId}"`);
+                    const context = src.substring(Math.max(0, idIdx - 200), idIdx + 400);
+                    const titleMatch = context.match(/"name"\s*:\s*"([^"]{5,80})"/);
+                    const priceMatch = context.match(/"amount"\s*:\s*"([^"]+)"/);
+                    const imgMatch = context.match(/"uri"\s*:\s*"(https:\/\/[^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"/);
+
+                    if (!titleMatch && !priceMatch) continue; // not a listing
+
+                    const cleanTitle = (titleMatch?.[1] || 'Unknown listing').replace(/\\u[\dA-Fa-f]{4}/g, '?');
+                    const tileText = priceMatch ? `$${priceMatch[1]} ${cleanTitle}` : cleanTitle;
+
+                    console.log(`[local-eval] JSON match: "${cleanTitle}" (ID: ${externalId})`);
+                    results.push({
+                        externalId,
+                        url: `https://www.facebook.com/marketplace/item/${externalId}/`,
+                        imageUrl: imgMatch?.[1] || null,
+                        title: cleanTitle.substring(0, 100),
+                        tileText,
+                    });
+                    seenIds.add(externalId);
+                }
+                if (results.length > 0) break; // found listings, stop scanning scripts
+            }
+        }
+
         return results;
     });
 
