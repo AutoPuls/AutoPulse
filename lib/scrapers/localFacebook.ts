@@ -242,6 +242,9 @@ export async function scrapeLocalMarketplace(
     const htmlSnippet = rawHtml.replace(/\s+/g, ' ').substring(0, 300);
     console.log(`[local-scraper] HTML snippet: ${htmlSnippet}`);
 
+    // Junk title patterns to reject (FB category nav in English + French, generic fallbacks)
+    const JUNK_TITLES = /^(marketplace listing|vehicles?|cars?|trucks?|voitures?|bateaux|bateau|motos?|motorcycles?|caravanes?|camping-cars?|sports? mécaniques?|powersports?|rv|campers?|boats?|trailers?|unknown)$/i;
+
     type ListingRaw = { externalId: string; url: string; imageUrl: string | null; title: string; tileText: string };
     const listings: ListingRaw[] = [];
     const seenIds = new Set<string>();
@@ -256,36 +259,49 @@ export async function scrapeLocalMarketplace(
         if (seenIds.has(externalId)) continue;
         seenIds.add(externalId);
 
-        // Pull surrounding context (up to 1500 chars around the ID occurrence)
+        // Pull surrounding context (up to 1600 chars around the ID occurrence)
         const ctxStart = Math.max(0, idMatch.index - 800);
         const ctxEnd = Math.min(rawHtml.length, idMatch.index + 800);
         const context = rawHtml.substring(ctxStart, ctxEnd);
 
-        // Title — FB JSON keys vary: marketplace_listing_title, listing_title, name
-        const titleMatch =
+        // Title — prefer explicit marketplace key; only fall back to generic "name" when price is also present
+        const strictTitleMatch =
             context.match(/"marketplace_listing_title"\s*:\s*"([^"]{3,120})"/) ||
-            context.match(/"listing_title"\s*:\s*"([^"]{3,120})"/) ||
-            context.match(/"name"\s*:\s*"([^"]{5,120})"/);
+            context.match(/"listing_title"\s*:\s*"([^"]{3,120})"/);
 
-        // Price — "amount":"5000" or "listing_price":{"amount":"5000"}
-        const priceMatch =
+        // Price — compute early so we can gate the "name" fallback on it
+        const priceMatchEarly =
             context.match(/"amount"\s*:\s*"(\d+(?:\.\d+)?)"/) ||
             context.match(/\$\s*([\d,]+)/);
+        const priceValueEarly = parseFloat((priceMatchEarly?.[1] || '0').replace(/,/g, ''));
+
+        // Only use generic "name" field when a real price is present (blocks French category nav)
+        const nameFallback = priceValueEarly > 0
+            ? context.match(/"name"\s*:\s*"([^"]{5,120})"/) ?? null
+            : null;
+        const titleMatch = strictTitleMatch || nameFallback;
+
+        // Price (using the early-check value already computed)
+        const priceMatch = priceMatchEarly;
+        const priceValue = priceValueEarly;
 
         // Image — uri field pointing to CDN jpg/png/webp
         const imgMatch = context.match(/"uri"\s*:\s*"(https:\\\/\\\/[^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"/);
 
-        // Must have at least a price OR title signal to be a real listing
-        if (!titleMatch && !priceMatch) continue;
+        // Must have BOTH a parseable price > 0 AND a title to be a real vehicle listing
+        if (!titleMatch || priceValue <= 0) continue;
 
-        const rawTitle = titleMatch?.[1] || 'Unknown';
-        // Unescape unicode sequences and HTML entities
+        const rawTitle = titleMatch[1];
         const title = rawTitle.replace(/\\u([\dA-Fa-f]{4})/g, (_, h) => String.fromCharCode(parseInt(h, 16))).trim();
+
+        // Skip known junk: category nav names, generic fallback titles
+        if (JUNK_TITLES.test(title)) continue;
+
         const priceStr = priceMatch?.[1] || '';
-        const tileText = priceStr ? `$${priceStr} ${title}` : title;
+        const tileText = `$${priceStr} ${title}`;
         const imageUrl = imgMatch?.[1]?.replace(/\\\//g, '/') || null;
 
-        console.log(`[local-scraper] ID found: ${externalId} | title="${title.substring(0, 60)}" | price=${priceStr || 'none'}`);
+        console.log(`[local-scraper] ✅ Listing: ${externalId} | "${title.substring(0, 60)}" | $${priceStr}`);
         listings.push({
             externalId,
             url: `https://www.facebook.com/marketplace/item/${externalId}/`,
@@ -311,20 +327,23 @@ export async function scrapeLocalMarketplace(
 
             const titleMatch =
                 context.match(/"marketplace_listing_title"\s*:\s*"([^"]{3,120})"/) ||
-                context.match(/"name"\s*:\s*"([^"]{5,120})"/);
+                context.match(/"listing_title"\s*:\s*"([^"]{3,120})"/);  // no generic "name" fallback here
             const priceMatch = context.match(/"amount"\s*:\s*"(\d+(?:\.\d+)?)"/);
+            const priceValue2 = parseFloat((priceMatch?.[1] || '0').replace(/,/g, ''));
             const imgMatch = context.match(/"uri"\s*:\s*"(https:\\\/\\\/[^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"/);
 
-            if (!titleMatch && !priceMatch) continue;
+            if (!titleMatch || priceValue2 <= 0) continue;
+
+            const rawTitle = titleMatch[1];
+            const title = rawTitle.replace(/\\u([\dA-Fa-f]{4})/g, (_, h) => String.fromCharCode(parseInt(h, 16))).trim();
+            if (JUNK_TITLES.test(title)) continue;
 
             seenIds.add(externalId);
-            const rawTitle = titleMatch?.[1] || 'Unknown';
-            const title = rawTitle.replace(/\\u([\dA-Fa-f]{4})/g, (_, h) => String.fromCharCode(parseInt(h, 16))).trim();
-            const priceStr = priceMatch?.[1] || '';
-            const tileText = priceStr ? `$${priceStr} ${title}` : title;
+            const priceStr = priceMatch[1];
+            const tileText = `$${priceStr} ${title}`;
             const imageUrl = imgMatch?.[1]?.replace(/\\\//g, '/') || null;
 
-            console.log(`[local-scraper] JSON ID: ${externalId} | title="${title.substring(0, 60)}"`);
+            console.log(`[local-scraper] ✅ JSON Listing: ${externalId} | "${title.substring(0, 60)}" | $${priceStr}`);
             listings.push({
                 externalId,
                 url: `https://www.facebook.com/marketplace/item/${externalId}/`,
@@ -354,6 +373,12 @@ export async function scrapeLocalMarketplace(
         
         const fallbackDescription = `AutoPulse local capture: ${item.tileText || item.title}`.substring(0, 2000);
         const parsedPrice = parseTilePriceToCents(item.tileText || item.title || "");
+
+        // Skip zero-price listings — these are junk/FREE nav entries that slipped through
+        if (parsedPrice <= 0) {
+            console.log(`[local-scraper] ⏭️ Skipping zero-price entry: ${item.externalId} "${item.title}"`);
+            continue;
+        }
         const postedAt = parseRelativePostedAt(item.tileText);
         
         const parsed = parseListingText(item.title, fallbackDescription);
