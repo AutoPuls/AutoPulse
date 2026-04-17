@@ -224,6 +224,19 @@ export async function scrapeLocalMarketplace(
                 } catch (e) { /* ignore */ }
             }
 
+            if (clicked) {
+                // IMPORTANT: After bypassing a prompt, Facebook often lands on a generic homepage 
+                // or a transition URL. We must re-navigate to our target Marketplace URL.
+                console.log(`[local-scraper] 🔄 Re-navigating to target URL after bypass: ${url}`);
+                await page.goto(url, { waitUntil: 'load', timeout: 60000 });
+                
+                // Final check to see if we're finally on Marketplace
+                const finalCheckUrl = page.url();
+                if (finalCheckUrl.includes("/marketplace/")) {
+                    console.log(`[local-scraper] ✅ Successfully reached Marketplace after re-navigation.`);
+                }
+            }
+
             if (!clicked) {
                 console.error(`[local-scraper] ⚠️ REDIRECTED TO LOGIN. Facebook is blocking this IP or cookies are invalid.`);
                 throw new FacebookAuthError("Cookies expired or IP blocked by login redirect.");
