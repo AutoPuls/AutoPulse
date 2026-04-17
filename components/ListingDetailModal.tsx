@@ -70,6 +70,7 @@ export function ListingDetailModal({
 }) {
   const [listing, setListing] = React.useState<any>(initialListing);
   const [isRefreshing, setIsRefreshing] = React.useState(false);
+  const [isExpanded, setIsExpanded] = React.useState(false);
   const [syncStatus, setSyncStatus] = React.useState<"idle" | "syncing" | "busy" | "error">("idle");
 
   React.useEffect(() => {
@@ -200,6 +201,15 @@ export function ListingDetailModal({
                  {formatUsd(listing.price)}
                </div>
             </div>
+
+            {/* QUICK ACTION HEADER BUTTON (NEW) */}
+            <div className="absolute top-4 right-4 flex gap-2">
+               <Button asChild className="h-10 rounded-full bg-cyber-blue text-[10px] font-black text-black px-5 shadow-lg shadow-cyan-500/20 transition-all hover:scale-105 active:scale-95 border-none">
+                  <a href={listing.listingUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
+                     VIEW ON FACEBOOK <ExternalLink size={14} />
+                  </a>
+               </Button>
+            </div>
           </div>
 
           <div className="px-5 sm:px-10 py-6">
@@ -213,25 +223,22 @@ export function ListingDetailModal({
                 <DialogDescription className="text-xs text-muted-foreground font-medium uppercase tracking-widest opacity-70">
                   Full vehicle specifications and seller details
                 </DialogDescription>
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 border border-primary/20">
-                     <MapPin size={12} className="text-primary" />
-                     <span className="text-[10px] font-bold text-foreground/80">{loc || "USA"}</span>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <div className="flex items-center gap-1 rounded-full bg-white/5 px-2.5 py-1 border border-white/5">
+                     <MapPin size={10} className="text-primary" />
+                     <span className="text-[9px] font-bold text-foreground/70">{loc || "USA"}</span>
                   </div>
-                  <div className="flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 border border-primary/20">
-                     <Gauge size={12} className="text-primary" />
-                     <span className="text-[10px] font-bold text-foreground/80">{mileage}</span>
+                  <div className="flex items-center gap-1 rounded-full bg-white/5 px-2.5 py-1 border border-white/5">
+                     <Gauge size={10} className="text-primary" />
+                     <span className="text-[9px] font-bold text-foreground/70">{mileage}</span>
                   </div>
-                  <div className="flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 border border-primary/20">
-                     <Clock size={12} className="text-primary" />
-                     <span className="text-[10px] font-bold text-foreground/80">{timeAgo(listing.postedAt, isRefreshing)}</span>
+                  <div className="flex items-center gap-1 rounded-full bg-white/5 px-2.5 py-1 border border-white/5">
+                     <Clock size={10} className="text-primary" />
+                     <span className="text-[9px] font-bold text-foreground/70">{timeAgo(listing.postedAt, isRefreshing)}</span>
                   </div>
                   {isRefreshing && (
-                    <div className="flex items-center gap-2 px-3 py-1 transparent-glass rounded-full border border-cyan-500/30 animate-pulse transition-all duration-300">
-                      <Loader2 className="w-3.5 h-3.5 text-cyan-400 animate-spin" />
-                      <span className="text-[10px] uppercase font-bold tracking-widest text-cyan-400">
-                        {syncStatus === "busy" ? "Queueing..." : "Syncing..."}
-                      </span>
+                    <div className="flex items-center gap-2 px-2.5 py-1 bg-cyan-500/10 rounded-full border border-cyan-500/30 animate-pulse">
+                      <Loader2 className="w-3 h-3 text-cyan-400 animate-spin" />
                     </div>
                   )}
                 </div>
@@ -284,47 +291,48 @@ export function ListingDetailModal({
                 </div>
               )}
 
-              {/* Description Section - More Compact */}
+              {/* Description Section - Show More Logic */}
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-primary">
-                  <Info size={16} />
-                  <h3 className="text-[11px] font-black uppercase tracking-[0.2em]">About this vehicle</h3>
-                  {isRefreshing && (
-                    <span className="flex items-center gap-1 text-[8px] font-black bg-primary/20 text-primary px-2 py-0.5 rounded-full animate-pulse tracking-widest ml-auto uppercase">
-                      <Loader2 size={8} className="animate-spin" /> Analyzing lead timing...
-                    </span>
-                  )}
+                  <Info size={14} />
+                  <h3 className="text-[10px] font-black uppercase tracking-[0.2em]">About this vehicle</h3>
                 </div>
                 <div className={cn(
-                  "rounded-2xl bg-white/5 border border-white/10 p-5 transition-all duration-500",
+                  "rounded-2xl bg-white/5 border border-white/10 p-5 relative overflow-hidden transition-all duration-500",
                   isRefreshing ? "opacity-40 blur-[2px] scale-[0.98]" : "opacity-100 blur-0 scale-100"
                 )}>
-                  <div className="leading-relaxed text-foreground/80 text-sm font-medium whitespace-pre-wrap max-h-40 overflow-y-auto custom-scrollbar">
+                  <div className={cn(
+                    "leading-relaxed text-foreground/80 text-sm font-medium whitespace-pre-wrap transition-all duration-500",
+                    !isExpanded && "line-clamp-3"
+                  )}>
                     {listing.rawDescription || listing.description ? (
                       (listing.rawDescription || listing.description || "").replace(/AutoPulse local capture:\s*/, "") || "No detailed description provided."
                     ) : (
                       "Explore this vehicle on Facebook Marketplace for full details and seller information."
                     )}
                   </div>
+                  
+                  {((listing.rawDescription || listing.description || "").length > 150) && (
+                    <button 
+                      onClick={() => setIsExpanded(!isExpanded)}
+                      className="mt-3 text-[10px] font-black text-cyber-blue uppercase tracking-widest hover:underline flex items-center gap-1"
+                    >
+                      {isExpanded ? "Show Less" : "Show More"}
+                    </button>
+                  )}
                 </div>
               </div>
 
-              {/* Actions - Brought Higher */}
-              <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                <Button asChild className="flex-1 py-7 rounded-2xl bg-cyber-gradient text-base font-black text-black shadow-lg transition-all hover:scale-[1.02] active:scale-95">
-                  <a href={listing.listingUrl} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2">
-                     VIEW ON FACEBOOK <ExternalLink size={20} />
-                  </a>
-                </Button>
-                
-                <Button variant="outline" className="sm:w-16 py-7 rounded-2xl border-white/10 hover:bg-white/10 shrink-0">
-                   <Facebook size={20} className="text-primary" />
-                </Button>
+              <div className="flex items-center justify-between pt-2">
+                <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest opacity-40">
+                   Verified via AutoPulse Engine
+                </p>
+                <div className="flex gap-2">
+                   <Button variant="outline" className="h-8 rounded-lg border-white/10 hover:bg-white/10 text-[9px] font-bold px-3">
+                      SHARE
+                   </Button>
+                </div>
               </div>
-
-              <p className="text-[9px] text-center font-bold text-muted-foreground uppercase tracking-widest opacity-40">
-                 Verified via AutoPulse Engine
-              </p>
             </div>
           </div>
         </div>
