@@ -26,23 +26,23 @@ export function Navbar(): React.ReactElement {
   ];
 
   return (
-    <div className="fixed top-6 left-1/2 z-50 w-full max-w-[95%] -translate-x-1/2 sm:max-w-5xl">
-      <header className="relative overflow-hidden rounded-full border border-black/10 dark:border-white/10 bg-white/40 dark:bg-black/40 px-6 py-3 backdrop-blur-2xl shadow-[0_8px_32px_rgba(0,0,0,0.1)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.8)] transition-all duration-500 hover:border-primary/30">
-        <div className="flex h-12 items-center justify-between">
+    <div className="fixed top-0 left-0 right-0 z-50 w-full sm:top-6 sm:left-1/2 sm:w-auto sm:max-w-5xl sm:-translate-x-1/2">
+      <header className="relative overflow-hidden border-b border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 px-4 py-2 backdrop-blur-3xl shadow-lg transition-all duration-500 sm:rounded-full sm:border sm:px-6 sm:py-3 sm:bg-white/40 sm:dark:bg-black/40">
+        <div className="flex h-11 items-center justify-between sm:h-12">
           
           {/* Brand Logo */}
-          <Link href="/" className="flex items-center gap-2.5 group">
+          <Link href="/" className="flex items-center gap-2 group">
             <div className="relative">
-              <div className="absolute inset-0 animate-pulse-glow rounded-xl bg-primary/20 blur-md" />
-              <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyber-blue to-cyber-purple text-primary-foreground shadow-lg transition-transform duration-500 group-hover:rotate-12 group-hover:scale-110">
-                <CarFront size={22} className="drop-shadow-sm" />
+              <div className="absolute inset-0 animate-pulse-glow rounded-lg bg-primary/20 blur-md sm:rounded-xl" />
+              <div className="relative flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-cyber-blue to-cyber-purple text-primary-foreground shadow-lg transition-transform duration-500 group-hover:rotate-12 group-hover:scale-110 sm:h-10 sm:w-10 sm:rounded-xl">
+                <CarFront size={18} className="drop-shadow-sm sm:size-[22px]" />
               </div>
             </div>
             <div className="flex flex-col">
-              <span className="font-display text-xl font-black leading-tight tracking-tighter text-foreground">
+              <span className="font-display text-lg font-black leading-tight tracking-tighter text-foreground sm:text-xl">
                 AUTO<span className="text-primary">PULSE</span>
               </span>
-              <span className="text-[10px] font-bold uppercase tracking-widest text-primary/60 leading-none">USA Aggregator</span>
+              <span className="hidden text-[10px] font-bold uppercase tracking-widest text-primary/60 leading-none sm:block">USA Aggregator</span>
             </div>
           </Link>
 
@@ -72,25 +72,25 @@ export function Navbar(): React.ReactElement {
           </nav>
 
           {/* Actions */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              className="hidden h-10 w-10 rounded-full bg-black/5 dark:bg-white/5 text-muted-foreground transition-colors hover:bg-black/10 dark:hover:bg-white/10 hover:text-foreground sm:flex"
+              className="h-9 w-9 rounded-full bg-black/5 dark:bg-white/5 text-muted-foreground transition-colors hover:bg-black/10 dark:hover:bg-white/10 hover:text-foreground sm:h-10 sm:w-10"
             >
-              {mounted && (theme === "dark" ? <Sun size={20} className="text-amber-400" /> : <Moon size={20} />)}
+              {mounted && (theme === "dark" ? <Sun size={18} className="text-amber-400 sm:size-5" /> : <Moon size={18} className="sm:size-5" />)}
             </Button>
             
             <Button
               size="sm"
               onClick={() => setAlertOpen(true)}
-              className="relative overflow-hidden rounded-full bg-black/10 dark:bg-white/10 px-5 py-5 font-bold text-foreground dark:text-white transition-all hover:bg-black/20 dark:hover:bg-white/20 active:scale-95 group/btn"
+              className="relative h-9 w-9 overflow-hidden rounded-full bg-black/10 dark:bg-white/10 p-0 font-bold text-foreground dark:text-white transition-all hover:bg-black/20 dark:hover:bg-white/20 active:scale-95 group/btn sm:h-auto sm:w-auto sm:px-5 sm:py-5"
             >
               <div className="absolute inset-0 -translate-x-full bg-cyber-gradient transition-transform duration-500 group-hover/btn:translate-x-0" />
-              <span className="relative flex items-center gap-2">
+              <span className="relative flex items-center justify-center gap-2">
                 <Bell size={16} className="group-hover/btn:animate-bounce" />
-                Notify Me
+                <span className="hidden sm:inline">Notify Me</span>
               </span>
             </Button>
 
@@ -99,45 +99,46 @@ export function Navbar(): React.ReactElement {
               variant="ghost"
               size="icon"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="flex h-10 w-10 rounded-full bg-black/5 dark:bg-white/5 text-muted-foreground hover:bg-black/10 dark:hover:bg-white/10 hover:text-foreground md:hidden"
+              className="flex h-9 w-9 rounded-full bg-black/5 dark:bg-white/5 text-muted-foreground hover:bg-black/10 dark:hover:bg-white/10 hover:text-foreground md:hidden"
             >
-              {isMenuOpen ? <X size={22} /> : <Menu size={22} />}
+              {isMenuOpen ? <X size={20} /> : <Menu size={20} />}
             </Button>
           </div>
         </div>
 
         {/* Mobile Menu */}
         {isMenuOpen && (
-          <div className="mt-4 flex flex-col gap-2 rounded-3xl bg-white/60 dark:bg-black/40 backdrop-blur-2xl p-4 border border-black/10 dark:border-white/5 md:hidden animate-in fade-in zoom-in duration-300">
+          <div className="mt-4 flex flex-col gap-2 rounded-2xl bg-white/40 dark:bg-black/20 p-2 border border-black/5 dark:border-white/5 md:hidden animate-in fade-in slide-in-from-top-4 duration-300">
             {navItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
                 onClick={() => setIsMenuOpen(false)}
                 className={cn(
-                  "flex items-center gap-4 rounded-2xl px-5 py-4 text-lg font-black transition-all",
+                  "flex items-center gap-4 rounded-xl px-5 py-4 text-base font-bold transition-all",
                   pathname === item.href 
-                    ? "bg-cyber-gradient text-primary-foreground" 
+                    ? "bg-cyber-gradient text-primary-foreground shadow-lg" 
                     : "text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5 hover:text-foreground"
                 )}
               >
-                <item.icon size={22} />
+                <item.icon size={20} />
                 {item.label}
               </Link>
             ))}
-            <div className="mt-4 pt-4 border-t border-white/5">
-              <Button
-                className="w-full rounded-2xl bg-cyber-gradient py-7 text-lg font-black text-primary-foreground shadow-lg active:scale-[0.98]"
-                onClick={() => {
-                  setAlertOpen(true);
-                  setIsMenuOpen(false);
-                }}
-              >
-                Set AI Alert
-              </Button>
-            </div>
+            <Button
+              className="mt-2 w-full rounded-xl bg-cyber-gradient py-6 text-base font-bold text-primary-foreground shadow-lg active:scale-[0.98]"
+              onClick={() => {
+                setAlertOpen(true);
+                setIsMenuOpen(false);
+              }}
+            >
+              <Bell size={18} className="mr-2" />
+              AI Search Sentinel
+            </Button>
           </div>
         )}
+      </header>
+    </div>
       </header>
     </div>
   );

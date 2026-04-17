@@ -22,7 +22,7 @@ export default async function HomePage(): Promise<ReactElement> {
       <div className="absolute inset-0 z-0 bg-[linear-gradient(to_right,hsl(var(--primary)/0.03)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--primary)/0.03)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none" />
 
       {/* Hero Section */}
-      <section className="relative overflow-hidden pt-16 pb-24 lg:pt-32 lg:pb-40 text-foreground">
+      <section className="relative overflow-hidden pt-8 pb-16 lg:pt-32 lg:pb-40 text-foreground">
         <div className="absolute inset-0 bg-gradient-to-b from-background via-transparent to-background pointer-events-none z-0" />
         <div className="absolute top-0 right-1/4 -z-10 h-[500px] w-[500px] rounded-full bg-primary/10 blur-[150px] pointer-events-none" />
         <div className="absolute bottom-0 left-1/4 -z-10 h-[500px] w-[500px] rounded-full bg-cyber-purple/10 blur-[150px] pointer-events-none" />
@@ -30,15 +30,15 @@ export default async function HomePage(): Promise<ReactElement> {
         <div className="container relative z-10 px-4 sm:px-6">
           <div className="mx-auto max-w-4xl text-center">
             
-            <div className="mb-8 inline-flex items-center gap-3 rounded-full border border-primary/30 bg-primary/10 px-5 py-2 text-sm font-bold text-primary backdrop-blur-xl shadow-[0_0_20px_rgba(0,216,255,0.2)]">
+            <div className="mb-6 inline-flex items-center gap-3 rounded-full border border-primary/30 bg-primary/10 px-5 py-2 text-sm font-bold text-primary backdrop-blur-xl shadow-[0_0_20px_rgba(0,216,255,0.2)]">
               <span className="relative flex h-2.5 w-2.5">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75"></span>
                 <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-primary"></span>
               </span>
-              <span className="tracking-widest uppercase text-[11px]">Live: {totalListings.toLocaleString()} Listings | 50+ Hubs</span>
+              <span className="tracking-widest uppercase text-[11px]">Live: {totalListings.toLocaleString()} Listings</span>
             </div>
             
-            <h1 className="font-display text-5xl font-black tracking-tighter sm:text-7xl lg:text-8xl drop-shadow-2xl">
+            <h1 className="font-display text-4xl font-black tracking-tighter sm:text-7xl lg:text-8xl drop-shadow-2xl">
               <span className="bg-gradient-to-r from-foreground via-primary/80 to-primary bg-clip-text text-transparent">Nationwide</span> Car Search, 
               <br />One Simple Interface.
             </h1>

@@ -19,13 +19,13 @@ export function SearchLayout({
   children: React.ReactNode;
 }): React.ReactElement {
   return (
-    <div className="min-h-screen bg-cyber-mesh dark:bg-cyber-mesh pt-32 pb-20">
+    <div className="min-h-screen bg-cyber-mesh dark:bg-cyber-mesh pt-20 pb-20 sm:pt-32">
       <SearchFiltersSync />
       
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         
         {/* Superior Dashboard Header */}
-        <div className="relative mb-12 overflow-hidden rounded-[3rem] border border-black/10 dark:border-white/10 bg-white/40 dark:bg-black/40 p-8 backdrop-blur-3xl shadow-glass-surface lg:p-12">
+        <div className="relative mb-6 overflow-hidden rounded-[2rem] border border-black/10 dark:border-white/10 bg-white/40 dark:bg-black/40 p-5 backdrop-blur-3xl shadow-glass-surface sm:mb-12 sm:rounded-[3rem] sm:p-8 lg:p-12">
            <div className="absolute top-0 right-0 -mr-10 -mt-10 h-64 w-64 rounded-full bg-primary/5 blur-[80px]" />
            
            <div className="flex flex-col gap-10 lg:flex-row lg:items-center lg:justify-between">
@@ -34,7 +34,7 @@ export function SearchLayout({
                    <Activity size={12} className="animate-pulse" />
                    Real-time Indexing Active
                 </div>
-                <h1 className="font-display text-4xl font-black leading-[1.1] tracking-tighter text-foreground sm:text-6xl">
+                <h1 className="font-display text-3xl font-black leading-[1.1] tracking-tighter text-foreground sm:text-6xl">
                   Discover Your <br />
                   <span className="text-gradient">Dream Machine</span>
                 </h1>
