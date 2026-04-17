@@ -192,7 +192,7 @@ export async function scrapeLocalMarketplace(
         });
 
         const bodySnippet = await page.evaluate(() => document.body.innerText.substring(0, 500).replace(/\n/g, ' '));
-        console.log(`[local-scraper] Current URL: ${finalUrl}`);
+        console.log(`[local-scraper] [v2.1] Current URL: ${finalUrl}`);
         console.log(`[local-scraper] Page Title: ${pageTitle}`);
         console.log(`[local-scraper] Page Snippet length: ${bodySnippet.length}`);
         console.log(`[local-scraper] Page Snippet: ${bodySnippet}`);
