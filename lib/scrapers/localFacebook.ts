@@ -255,15 +255,21 @@ export async function scrapeLocalMarketplace(
             }
         }
 
-        // --- RELIABILITY: Wait for actual listing data ($ symbols) ---
-        console.log(`[local-scraper] Waiting for listing grid hydration (Price symbols)...`);
+        // --- RELIABILITY: Wait for actual listing data ---
+        console.log(`[local-scraper] Waiting for listing grid hydration (Price symbols or Marketplace content)...`);
         const hasData = await page.waitForFunction(() => {
-            return document.body.innerText.includes("$") || 
-                   document.querySelector('div[role="main"]') !== null;
+            const txt = document.body.innerText;
+            return txt.includes("$") || 
+                   txt.includes("£") || 
+                   txt.includes("€") ||
+                   txt.includes("Vehicles") ||
+                   document.querySelector('a[href*="/marketplace/item/"]') !== null;
         }, { timeout: 20000 }).catch(() => false);
 
         if (!hasData) {
-            console.warn(`[local-scraper] No price symbols ($) found on page after 20s. Page may be empty or layout changed.`);
+            const debugText = await page.evaluate(() => document.body.innerText.substring(0, 500).replace(/\s+/g, ' '));
+            const debugUrl = page.url();
+            console.warn(`[local-scraper] ⚠️ No listings detected. URL: ${debugUrl} | Snippet: ${debugText}`);
         }
     
     // 2. Scroll to load more (Infinite Scroll logic with Modal Bypass)
