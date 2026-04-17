@@ -197,78 +197,65 @@ export async function scrapeLocalMarketplace(
         console.log(`[local-scraper] Page Snippet length: ${bodySnippet.length}`);
         console.log(`[local-scraper] Page Snippet: ${bodySnippet}`);
 
-        if (finalUrl.includes("/login/") || pageTitle.includes("Log In") || pageTitle.includes("Connexion")) {
-            // RELIABILITY: Check for "Continue as..." or "Continue" buttons
-            // This happens when Facebook recognizes the session but asks for confirmation.
+        // --- RELIABILITY: Multi-stage Session Bypass ---
+        // If we land on a login page OR a transition page (crypted_string), we need to click "Continue"
+        let loopCount = 0;
+        const maxLoops = 5;
+        let bypassSuccessful = false;
+
+        while (loopCount < maxLoops) {
+            const currentUrl = page.url();
+            const currentTitle = await page.title();
+            
+            if (!currentUrl.includes("/login/") && !currentUrl.includes("crypted_string") && !currentTitle.includes("Log In")) {
+                if (loopCount > 0) console.log(`[local-scraper] ✅ Multi-stage bypass complete. URL: ${currentUrl}`);
+                bypassSuccessful = true;
+                break;
+            }
+
+            console.log(`[local-scraper] 🛡️ Bypass Step ${loopCount + 1}: Currently at ${currentUrl}`);
+            
             const continueSelectors = [
                 'text="Continue"',
                 'div[role="button"]:has-text("Continue")',
                 'div[role="button"]:has-text("Continuer")',
-                '[aria-label*="Continue"]'
+                'div[role="button"]:has-text("Confirm")',
+                '[aria-label*="Continue"]',
+                'button:has-text("Not Now")',
+                'div[role="button"]:has-text("OK")'
             ];
             
-            let clicked = false;
+            let actionTaken = false;
             for (const sel of continueSelectors) {
                 try {
                     const btn = page.locator(sel).first();
                     if (await btn.isVisible()) {
-                        console.log(`[local-scraper] 🔄 Found confirmation button ("${sel}"). Attempting to bypass redirect...`);
-                        await btn.click();
-                        await page.waitForTimeout(5000); 
-                        if (!page.url().includes("/login/")) {
-                            console.log(`[local-scraper] ✅ Successfully bypassed prompt. New URL: ${page.url()}`);
-                            clicked = true;
-                            break;
-                        }
+                        console.log(`[local-scraper] 🔄 Clicking confirmation button: "${sel}"...`);
+                        await btn.click({ force: true });
+                        await page.waitForTimeout(5000); // Wait for transition
+                        actionTaken = true;
+                        break; 
                     }
                 } catch (e) { /* ignore */ }
             }
 
-            if (clicked) {
-                console.log(`[local-scraper] ⏳ Waiting for natural redirect (Max 15s)...`);
-                
-                // Wait for the URL to land on Marketplace (ideal case) or at least away from login/transition
-                const landedOnMarketplace = await page.waitForFunction((target) => {
-                    const u = window.location.href;
-                    return u.includes(target) && !u.includes("login") && !u.includes("crypted_string");
-                }, location, { timeout: 15000 }).catch(() => false);
-
-                if (landedOnMarketplace) {
-                    console.log(`[local-scraper] ✅ Native redirect successful: ${page.url()}`);
-                } else {
-                    console.warn(`[local-scraper] ⚠️ Native redirect timed out or landed elsewhere. URL: ${page.url()}`);
-                    console.log(`[local-scraper] 🔄 Forcing re-navigation to target...`);
-                    await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 }).catch(() => {
-                        return page.goto(url, { waitUntil: 'load', timeout: 30000 });
-                    });
-                }
-                
-                // Check if we need to click "Not Now" or "OK" (Secondary prompts)
-                const secondarySelectors = [
-                    'button:has-text("Not Now")',
-                    'div[role="button"]:has-text("OK")',
-                    'div[role="button"]:has-text("Accepter")',
-                    'button:has-text("Decline")'
-                ];
-                for (const sel of secondarySelectors) {
-                    try {
-                        const btn = page.locator(sel).first();
-                        if (await btn.isVisible()) {
-                            console.log(`[local-scraper] 🔄 Found secondary prompt ("${sel}"). Clicking...`);
-                            await btn.click();
-                            await page.waitForTimeout(2000);
-                        }
-                    } catch (e) {}
-                }
-
-                const finalCheckUrl = page.url();
-                const finalTitle = await page.title();
-                console.log(`[local-scraper] 🔎 Post-bypass location: ${finalCheckUrl} | Title: ${finalTitle}`);
+            if (!actionTaken) {
+                console.warn(`[local-scraper] ⚠️ No bypass buttons found on step ${loopCount + 1}.`);
+                // If it's a login page but no button is found, we might be truly blocked
+                if (currentUrl.includes("/login/")) break;
+                // If it's a transition page, wait a bit more
+                await page.waitForTimeout(3000);
             }
 
-            if (!clicked) {
-                console.error(`[local-scraper] ⚠️ REDIRECTED TO LOGIN. Facebook is blocking this IP or cookies are invalid.`);
-                throw new FacebookAuthError("Cookies expired or IP blocked by login redirect.");
+            loopCount++;
+        }
+
+        // Final settling and re-navigation
+        if (bypassSuccessful || loopCount > 0) {
+            const currentUrl = page.url();
+            if (!currentUrl.includes("/marketplace/")) {
+                console.log(`[local-scraper] 🔄 Final re-navigation to target Marketplace: ${url}`);
+                await page.goto(url, { waitUntil: 'load', timeout: 60000 }).catch(() => {});
             }
         }
 
