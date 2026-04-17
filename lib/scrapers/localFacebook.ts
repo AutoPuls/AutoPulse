@@ -198,8 +198,36 @@ export async function scrapeLocalMarketplace(
         console.log(`[local-scraper] Page Snippet: ${bodySnippet}`);
 
         if (finalUrl.includes("/login/") || pageTitle.includes("Log In") || pageTitle.includes("Connexion")) {
-            console.error(`[local-scraper] ⚠️ REDIRECTED TO LOGIN. Facebook is blocking this IP or cookies are invalid.`);
-            throw new FacebookAuthError("Cookies expired or IP blocked by login redirect.");
+            // RELIABILITY: Check for "Continue as..." or "Continue" buttons
+            // This happens when Facebook recognizes the session but asks for confirmation.
+            const continueSelectors = [
+                'text="Continue"',
+                'div[role="button"]:has-text("Continue")',
+                'div[role="button"]:has-text("Continuer")',
+                '[aria-label*="Continue"]'
+            ];
+            
+            let clicked = false;
+            for (const sel of continueSelectors) {
+                try {
+                    const btn = page.locator(sel).first();
+                    if (await btn.isVisible()) {
+                        console.log(`[local-scraper] 🔄 Found confirmation button ("${sel}"). Attempting to bypass redirect...`);
+                        await btn.click();
+                        await page.waitForTimeout(5000); 
+                        if (!page.url().includes("/login/")) {
+                            console.log(`[local-scraper] ✅ Successfully bypassed prompt. New URL: ${page.url()}`);
+                            clicked = true;
+                            break;
+                        }
+                    }
+                } catch (e) { /* ignore */ }
+            }
+
+            if (!clicked) {
+                console.error(`[local-scraper] ⚠️ REDIRECTED TO LOGIN. Facebook is blocking this IP or cookies are invalid.`);
+                throw new FacebookAuthError("Cookies expired or IP blocked by login redirect.");
+            }
         }
 
         // --- RELIABILITY: Wait for actual listing data ($ symbols) ---
