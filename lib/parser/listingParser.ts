@@ -54,17 +54,17 @@ const MAKE_NORMALIZATION: Record<string, string> = {
 };
 
 const MODEL_MAP: Record<string, string[]> = {
-  Toyota: ["camry", "corolla", "rav4", "highlander", "tacoma", "tundra", "4runner", "sienna", "prius", "avalon", "venza", "sequoia", "land cruiser", "yaris", "supra", "gr86", "solara", "celica", "matrix", "fj cruiser", "echo", "tercel", "avalon", "c-hr", "chr"],
+  Toyota: ["camry", "corolla", "rav4", "highlander", "tacoma", "tundra", "4runner", "sienna", "prius", "avalon", "venza", "sequoia", "land cruiser", "yaris", "supra", "gr86", "solara", "celica", "matrix", "fj cruiser", "echo", "tercel", "avalon", "c-hr", "chr", "auris", "aygo", "hilux", "vios"],
   Honda: ["civic", "accord", "cr-v", "pilot", "odyssey", "ridgeline", "passport", "hrv", "hr-v", "fit", "insight", "element", "cr-z", "prelude", "s2000", "crosstour"],
   Ford: ["f-150", "f150", "f-250", "f250", "f-350", "f350", "mustang", "explorer", "escape", "edge", "fusion", "focus", "ranger", "bronco", "expedition", "maverick", "transit", "ecosport", "fiesta", "flex", "taurus", "crown victoria", "expedition el", "excursion", "e-150", "e150", "e-250", "e250", "e-350", "e350", "windstar", "freestar", "f-450", "f450", "f-550", "f550"],
   Chevrolet: ["silverado", "equinox", "malibu", "traverse", "tahoe", "suburban", "colorado", "blazer", "trax", "spark", "impala", "camaro", "corvette", "trailblazer", "express", "cruze", "sonic", "volt", "bolt", "hhr", "avalanche", "cobalt", "uplander", "venture", "astro", "cheyenne", "s10", "c1500", "k1500", "c2500", "k2500", "c3500", "k3500"],
-  Nissan: ["altima", "sentra", "maxima", "rogue", "pathfinder", "murano", "frontier", "titan", "armada", "kicks", "versa", "leaf", "quest", "xterra", "370z", "350z", "juke", "cube", "nv200", "titan xd", "frontier desert runner"],
-  BMW: ["3 series", "5 series", "7 series", "x1", "x3", "x5", "x7", "m3", "m5", "x6", "i3", "i4", "i7", "z4", "2 series", "4 series", "8 series", "x2", "x4", "m4", "m2", "m8", "x5 m", "x6 m", "1 series", "328i", "335i", "528i", "535i", "750li"],
+  Nissan: ["altima", "sentra", "maxima", "rogue", "pathfinder", "murano", "frontier", "titan", "armada", "kicks", "versa", "leaf", "quest", "xterra", "370z", "350z", "juke", "cube", "nv200", "titan xd", "frontier desert runner", "note", "qashqai"],
+  BMW: ["3 series", "5 series", "7 series", "x1", "x3", "x5", "x7", "m3", "m5", "x6", "i3", "i4", "i7", "z4", "2 series", "4 series", "8 series", "x2", "x4", "m4", "m2", "m8", "x5 m", "x6 m", "1 series", "116i", "118i", "120i", "118d", "120d", "135i", "328i", "335i", "528i", "535i", "750li"],
   "Mercedes-Benz": ["c-class", "e-class", "s-class", "glc", "gle", "gls", "gla", "glb", "cla", "cls", "sl", "g-class", "amg", "eqb", "eqe", "eqs", "glk", "ml", "gl", "slk", "cl", "clk", "sprinter", "metris"],
   Jeep: ["wrangler", "grand cherokee", "cherokee", "compass", "renegade", "gladiator", "patriot", "commander", "wagoneer", "grand wagoneer", "tj", "jk", "jl"],
   Dodge: ["charger", "challenger", "durango", "ram", "dart", "journey", "viper", "hornet", "caravan", "grand caravan", "nitro", "magnum", "avenger", "caliber", "dakota", "ram 1500", "ram 2500", "ram 3500"],
-  Ram: ["1500", "2500", "3500", "promaster", "ramcharger", "1500 classic", "2500 heavy duty", "3500 heavy duty"],
-  GMC: ["sierra", "yukon", "terrain", "acadia", "canyon", "envoy", "safari", "savana", "jimmy", "sonoma"],
+  Ram: ["1500", "2500", "3500", "promaster", "ramcharger", "1500 classic", "2500 heavy duty", "3500 heavy duty", "700", "1500 hemi", "2500 diesel"],
+  GMC: ["sierra", "yukon", "terrain", "acadia", "canyon", "envoy", "safari", "savana", "jimmy", "sonoma", "1500", "2500", "3500"],
   Hyundai: ["elantra", "sonata", "tucson", "santa fe", "palisade", "kona", "ioniq", "veloster", "genesis", "accent", "azera", "nexo", "tiburon", "entourage", "veracruz", "venue"],
   Kia: ["optima", "sorento", "sportage", "telluride", "stinger", "soul", "forte", "rio", "carnival", "k5", "niro", "ev6", "seltos", "cadenza", "sedona", "borrego", "amanti", "spectra", "rondo"],
   Subaru: ["outback", "forester", "impreza", "legacy", "crosstrek", "wrx", "sti", "ascent", "brz", "baja", "tribeca", "xv crosstrek", "crosstour"],
@@ -75,7 +75,11 @@ const MODEL_MAP: Record<string, string[]> = {
   Mazda: ["cx-5", "cx-9", "cx-30", "cx-50", "mazda3", "mazda6", "mx-5 miata", "miata", "cx-3", "cx-7", "mazda2", "mazda5", "tribute", "b2300", "b3000", "b4000"],
   Volvo: ["s60", "s90", "v60", "v90", "xc40", "xc60", "xc90", "c40", "v40", "c30", "s40", "s70", "s80", "v70"],
   Infiniti: ["q50", "q60", "qx50", "qx60", "qx80", "g35", "g37", "fx35", "fx45", "ex35", "m35", "m37", "qx56", "qx70"],
-  Acura: ["mdx", "rdx", "tlx", "ilx", "integra", "tsx", "tl", "rlx", "nsx", "zdx", "rsx", "cl"]
+  Acura: ["mdx", "rdx", "tlx", "ilx", "integra", "tsx", "tl", "rlx", "nsx", "zdx", "rsx", "cl"],
+  Buick: ["enclave", "encore", "envision", "lacrosse", "regal", "verano", "lucerne", "lesabre", "century", "park avenue", "riviera", "roadmaster"],
+  Mitsubishi: ["outlander", "eclipse", "lancer", "pajero", "montero", "asx", "mirage", "fuso"],
+  Geo: ["tracker", "prizm", "metro", "storm"],
+  Suzuki: ["sx4", "vitara", "grand vitara", "swift", "equator", "kizashi", "xl7", "forenza", "reno", "verona", "sidekick", "samurai"]
 };
 
 
@@ -98,11 +102,11 @@ const TRIMS = [
 ];
 
 const COLORS = [
-  "black", "white", "silver", "grey", "gray", "red", "blue", "green", "brown", "tan", "beige", "orange", "yellow", "gold", "purple", "maroon", "navy", "teal", "champagne", "pearl", "bronze", "dark blue", "dark grey", "dark gray", "light blue", "charcoal", "gunmetal", "burgundy"
+  "black", "white", "silver", "grey", "gray", "red", "blue", "green", "brown", "tan", "beige", "orange", "yellow", "gold", "purple", "maroon", "navy", "teal", "champagne", "pearl", "bronze", "dark blue", "dark grey", "dark gray", "light blue", "charcoal", "gunmetal", "burgundy", "metallic", "matte", "diamond white", "midnight black", "candy red", "nardo grey", "lime green"
 ];
 
 const FEATURE_KEYWORDS = [
-  "leather seats", "leather interior", "heated seats", "cooled seats", "sunroof", "moonroof", "panoramic roof", "navigation", "nav system", "backup camera", "rear camera", "blind spot", "lane assist", "apple carplay", "carplay", "android auto", "bluetooth", "wifi", "remote start", "keyless entry", "push start", "push button start", "third row", "3rd row", "captain chairs", "running boards", "tow package", "trailer hitch", "roof rack", "bed liner", "lift kit", "leveling kit", "new tires", "new brakes", "new battery", "fresh oil change", "fully loaded", "low miles", "highway miles", "one owner", "clean carfax", "carfax available", "no rust", "heated steering wheel", "ventilated seats", "massage seats", "head up display", "hud", "premium sound", "bose", "harman kardon", "jbl", "bang olufsen", "mark levinson", "burmester", "adaptive cruise", "cruise control", "auto park", "self parking", "night vision", "surround camera", "360 camera", "ambient lighting", "power tailgate", "power liftgate", "wireless charging", "usb ports", "dual zone climate", "tri zone climate", "air suspension", "sport suspension", "performance exhaust", "cold air intake", "aftermarket wheels", "chrome wheels", "sport wheels", "tinted windows", "tint", "window tint", "power windows", "power locks", "keyless go"
+  "leather seats", "leather interior", "heated seats", "cooled seats", "sunroof", "moonroof", "panoramic roof", "navigation", "nav system", "backup camera", "rear camera", "blind spot", "lane assist", "apple carplay", "carplay", "android auto", "bluetooth", "wifi", "remote start", "keyless entry", "push start", "push button start", "third row", "3rd row", "captain chairs", "running boards", "tow package", "trailer hitch", "roof rack", "bed liner", "lift kit", "leveling kit", "new tires", "new brakes", "new battery", "fresh oil change", "fully loaded", "low miles", "highway miles", "one owner", "clean carfax", "carfax available", "no rust", "heated steering wheel", "ventilated seats", "massage seats", "head up display", "hud", "premium sound", "bose", "harman kardon", "jbl", "bang olufsen", "mark levinson", "burmester", "adaptive cruise", "cruise control", "auto park", "self parking", "night vision", "surround camera", "360 camera", "ambient lighting", "power tailgate", "power liftgate", "wireless charging", "usb ports", "dual zone climate", "tri zone climate", "air suspension", "sport suspension", "performance exhaust", "cold air intake", "aftermarket wheels", "chrome wheels", "sport wheels", "tinted windows", "tint", "window tint", "power windows", "power locks", "keyless go", "clean title", "rebuilt title", "salvage title", "fwd", "awd", "4wd", "rwd", "turbo", "hybrid", "electric", "manual", "auto", "diesel"
 ];
 
 const POSITIVE_SIGNALS = [
@@ -146,7 +150,9 @@ export function isJunkTitle(title: string): boolean {
  * Main parser function to convert unstructured text into car data.
  */
 export function parseListingText(title: string, description: string = ""): ParsedListing {
-  const fullText = `${title} ${description}`.toLowerCase();
+  const titleText = title.toLowerCase();
+  const descriptionText = (description || "").toLowerCase();
+  const fullText = (titleText + " " + descriptionText).trim();
   let parseScore = 100;
 
   // 1. YEAR extraction
@@ -154,12 +160,22 @@ export function parseListingText(title: string, description: string = ""): Parse
   const year = yearMatch ? parseInt(yearMatch[1], 10) : 0;
   if (year === 0) parseScore -= 20;
 
-  // 2. MAKE extraction
+  // 2. MAKE extraction - Check title FIRST (higher priority)
   let make = "Unknown";
+  // Pass 1: Check title
   for (const m of MAKES) {
-    if (new RegExp(`\\b${m}\\b`, "i").test(fullText)) {
+    if (new RegExp(`\\b${m}\\b`, "i").test(titleText)) {
       make = MAKE_NORMALIZATION[m] || capitalize(m);
       break;
+    }
+  }
+  // Pass 2: Check description only if title failed
+  if (make === "Unknown") {
+    for (const m of MAKES) {
+      if (new RegExp(`\\b${m}\\b`, "i").test(descriptionText)) {
+        make = MAKE_NORMALIZATION[m] || capitalize(m);
+        break;
+      }
     }
   }
 
@@ -168,20 +184,42 @@ export function parseListingText(title: string, description: string = ""): Parse
   if (make !== "Unknown") {
     const definedModels = MODEL_MAP[make] || [];
     const sortedModels = [...definedModels].sort((a, b) => b.length - a.length);
+    // Pass 1: Check title
     for (const m of sortedModels) {
-      if (new RegExp(`\\b${m.replace("-", "[- ]?")}\\b`, "i").test(fullText)) {
+      if (new RegExp(`\\b${m.replace("-", "[- ]?")}\\b`, "i").test(titleText)) {
         model = MODEL_DISPLAY_NAMES[m] || capitalize(m);
         break;
       }
     }
+    // Pass 2: Check description only if title failed
+    if (model === "Unknown") {
+      for (const m of sortedModels) {
+        if (new RegExp(`\\b${m.replace("-", "[- ]?")}\\b`, "i").test(descriptionText)) {
+          model = MODEL_DISPLAY_NAMES[m] || capitalize(m);
+          break;
+        }
+      }
+    }
   } else {
-    // Try to find make via model match if make is missing in text
+    // Try to find make via model match if make is missing - check title FIRST
     outer: for (const [mKey, mList] of Object.entries(MODEL_MAP)) {
       for (const mName of mList) {
-        if (new RegExp(`\\b${mName.replace("-", "[- ]?")}\\b`, "i").test(fullText)) {
+        if (new RegExp(`\\b${mName.replace("-", "[- ]?")}\\b`, "i").test(titleText)) {
           make = mKey;
           model = MODEL_DISPLAY_NAMES[mName] || capitalize(mName);
           break outer;
+        }
+      }
+    }
+    // Fallback to description for make/model via model match
+    if (make === "Unknown") {
+      outer: for (const [mKey, mList] of Object.entries(MODEL_MAP)) {
+        for (const mName of mList) {
+          if (new RegExp(`\\b${mName.replace("-", "[- ]?")}\\b`, "i").test(descriptionText)) {
+            make = mKey;
+            model = MODEL_DISPLAY_NAMES[mName] || capitalize(mName);
+            break outer;
+          }
         }
       }
     }

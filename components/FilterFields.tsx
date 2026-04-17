@@ -401,6 +401,47 @@ export function FilterFields({ initial, onApply }: Props): React.ReactElement {
          )}
       </div>
 
+      {/* 2.5 PREMIUM FEATURES SECTION */}
+      <div className="rounded-2xl bg-black/5 dark:bg-white/[0.02] border border-black/10 dark:border-white/5 overflow-hidden">
+        <SectionHeader 
+           icon={ShieldCheck} 
+           title="Premium Features" 
+           isOpen={expanded.identity} // Reusing identity expansion or could add a new one
+           onClick={() => toggleSection('identity')} 
+        />
+        <div className="p-5 pt-0 space-y-3">
+           <Label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Popular Tags</Label>
+           <div className="flex flex-wrap gap-2">
+              {[
+                "Sunroof", "Leather", "Navigation", "Backup Camera", 
+                "Apple Carplay", "Third Row", "Heated Seats", "Tow Package",
+                "New Tires", "AWD", "Clean Title"
+              ].map(feat => (
+                <button
+                   key={feat}
+                   type="button"
+                   onClick={() => {
+                     const low = feat.toLowerCase();
+                     const currentVal = keywords || "";
+                     if (currentVal.toLowerCase().includes(low)) {
+                        setKeywords(currentVal.replace(new RegExp(low, 'gi'), "").replace(/,\s*,/g, ",").trim());
+                     } else {
+                        setKeywords(currentVal ? `${currentVal}, ${feat}` : feat);
+                     }
+                   }}
+                   className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all border ${
+                     keywords.toLowerCase().includes(feat.toLowerCase())
+                     ? "bg-cyber-blue text-black border-cyber-blue shadow-[0_0_10px_rgba(0,216,255,0.3)]"
+                     : "bg-black/5 dark:bg-white/5 text-muted-foreground border-black/10 dark:border-white/5 hover:border-cyber-blue/50 hover:text-foreground"
+                   }`}
+                >
+                   {feat}
+                </button>
+              ))}
+           </div>
+        </div>
+      </div>
+
     </div>
   );
 }

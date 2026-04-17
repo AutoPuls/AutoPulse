@@ -28,18 +28,20 @@ export const ListingCard = memo(function ListingCard({ listing }: { listing: any
   const [imgOk, setImgOk] = useState(true);
   const src = listing.imageUrl && imgOk ? listing.imageUrl : placeholderSvg;
 
-  const hasParsedName =
-    listing.make !== "Unknown" &&
-    listing.model !== "Unknown";
+  const hasParsedMake = listing.make !== "Unknown";
+  const hasParsedModel = listing.model !== "Unknown";
+
   const fallbackTitle =
     (listing.rawTitle && listing.rawTitle.trim().length > 0
       ? listing.rawTitle.trim()
       : "Marketplace Listing");
-  const title = hasParsedName
-    ? listing.year > 0
-      ? `${listing.year} · ${listing.make} · ${listing.model}`
-      : `${listing.make} · ${listing.model}`
-    : fallbackTitle;
+
+  let title = fallbackTitle;
+  if (hasParsedMake) {
+    const yearPrefix = listing.year > 0 ? `${listing.year} · ` : "";
+    const modelSuffix = hasParsedModel ? ` · ${listing.model}` : "";
+    title = `${yearPrefix}${listing.make}${modelSuffix}`;
+  }
 
   const loc = [listing.city, listing.state].filter(Boolean).join(", ");
   const mileage = listing.mileage != null
@@ -81,6 +83,19 @@ export const ListingCard = memo(function ListingCard({ listing }: { listing: any
               <Gauge size={12} className="mr-1.5 text-cyber-blue" />
               {mileage}
             </span>
+
+            {listing.color && (
+              <span className="inline-flex w-fit items-center rounded-full bg-black/40 dark:bg-black/40 backdrop-blur-xl border border-white/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-white shadow-lg">
+                <div className={cn("mr-1.5 h-2 w-2 rounded-full", `bg-${listing.color.toLowerCase()}-500`)} style={{ backgroundColor: listing.color.toLowerCase() }} />
+                {listing.color}
+              </span>
+            )}
+            
+            {listing.titleStatus && listing.titleStatus !== 'clean' && (
+              <span className="inline-flex w-fit items-center rounded-full bg-red-500/20 backdrop-blur-xl border border-red-500/30 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-red-400 shadow-lg">
+                ⚠️ {listing.titleStatus}
+              </span>
+            )}
           </div>
 
           <div className="absolute bottom-4 right-4 flex translate-y-4 opacity-0 transition-all duration-500 group-hover:translate-y-0 group-hover:opacity-100">

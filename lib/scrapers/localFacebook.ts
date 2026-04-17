@@ -242,7 +242,7 @@ export async function scrapeLocalMarketplace(
     const htmlSnippet = rawHtml.replace(/\s+/g, ' ').substring(0, 300);
     console.log(`[local-scraper] HTML snippet: ${htmlSnippet}`);
 
-    type ListingRaw = { externalId: string; url: string; imageUrl: string | null; title: string; tileText: string };
+    type ListingRaw = { externalId: string; url: string; imageUrl: string | null; title: string; tileText: string; description?: string | null };
     const listings: ListingRaw[] = [];
     const seenIds = new Set<string>();
 
@@ -283,10 +283,16 @@ export async function scrapeLocalMarketplace(
         const priceValue = priceValueEarly;
 
         // Image — uri field pointing to CDN jpg/png/webp
-        // FB JSON may use escaped (https:\/\/) or plain (https://) slashes — handle both
         const imgRaw = context.match(/"uri"\s*:\s*"(https:[^",]{10,}?\.(?:jpg|jpeg|png|webp)[^",]*)"/);
         const imageUrl = imgRaw ? imgRaw[1].split('\\/').join('/') : null;
-        const imgMatch = imgRaw ? [imgRaw[0], imageUrl] : null;
+
+        // Description — look for dedicated text fields in the proximity
+        const descMatch = 
+            context.match(/"listing_description"\s*:\s*{\s*"text"\s*:\s*"([^"]{10,2000}?)"\s*}/) ||
+            context.match(/"redacted_description"\s*:\s*{\s*"text"\s*:\s*"([^"]{10,2000}?)"\s*}/) ||
+            context.match(/"description"\s*:\s*{\s*"text"\s*:\s*"([^"]{10,2000}?)"\s*}/);
+        
+        const rawDescription = descMatch ? descMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\u([\dA-Fa-f]{4})/g, (_, h) => String.fromCharCode(parseInt(h, 16))) : null;
 
         // Must have BOTH a parseable price > 0 AND a title to be a real vehicle listing
         if (!titleMatch || priceValue <= 0) continue;
@@ -311,6 +317,7 @@ export async function scrapeLocalMarketplace(
             imageUrl,
             title: title.substring(0, 100),
             tileText,
+            description: rawDescription
         });
     }
 
@@ -336,6 +343,14 @@ export async function scrapeLocalMarketplace(
             const imgRaw2 = context.match(/"uri"\s*:\s*"(https:[^",]{10,}?\.(?:jpg|jpeg|png|webp)[^",]*)"/);
             const imageUrl = imgRaw2 ? imgRaw2[1].split('\\/').join('/') : null;
 
+            // Description for Strategy 2
+            const descMatch2 = 
+                context.match(/"listing_description"\s*:\s*{\s*"text"\s*:\s*"([^"]{10,2000}?)"\s*}/) ||
+                context.match(/"redacted_description"\s*:\s*{\s*"text"\s*:\s*"([^"]{10,2000}?)"\s*}/) ||
+                context.match(/"description"\s*:\s*{\s*"text"\s*:\s*"([^"]{10,2000}?)"\s*}/);
+            
+            const rawDescription2 = descMatch2 ? descMatch2[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\u([\dA-Fa-f]{4})/g, (_, h) => String.fromCharCode(parseInt(h, 16))) : null;
+
             if (!titleMatch || priceValue2 <= 0) continue;
 
             const rawTitle = titleMatch![1];
@@ -357,6 +372,7 @@ export async function scrapeLocalMarketplace(
                 imageUrl,
                 title: title.substring(0, 100),
                 tileText,
+                description: rawDescription2
             });
         }
     }
@@ -378,7 +394,7 @@ export async function scrapeLocalMarketplace(
     for (const item of listings) {
         if (!item.externalId) continue;
         
-        const fallbackDescription = `AutoPulse local capture: ${item.tileText || item.title}`.substring(0, 2000);
+        const fallbackDescription = item.description || `AutoPulse local capture: ${item.tileText || item.title}`.substring(0, 2000);
         const parsedPrice = parseTilePriceToCents(item.tileText || item.title || "");
 
         // Skip zero-price listings — these are junk/FREE nav entries that slipped through
