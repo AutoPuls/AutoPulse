@@ -509,6 +509,19 @@ export async function scrapeLocalMarketplace(
             }
         }
 
+        // --- LOCATION ENFORCER (v3) ---
+        // Sometimes m.facebook.com sticks to a default city (e.g. San Francisco) even with a city slug.
+        const pageText = await page.evaluate(() => document.body.innerText.substring(0, 5000));
+        const cityLabel = location.replace(/-/g, ' ');
+        // Check if the current page text contains the target city.
+        // If it shows "San Francisco" but we wanted something else, clear cookies and retry once.
+        if (location !== 'san-francisco' && !pageText.toLowerCase().includes(cityLabel.toLowerCase()) && pageText.includes("San Francisco")) {
+            console.warn(`[local-scraper] 📍 Location mismatch detected (Stuck in SF?). Clearing cookies and retrying navigation...`);
+            await page.context().clearCookies();
+            await page.goto(url, { waitUntil: 'load', timeout: 60000 }).catch(() => {});
+            await page.waitForTimeout(5000);
+        }
+
         // --- RELIABILITY: Wait for actual listing data ---
         console.log(`[local-scraper] Waiting for listing grid hydration (Price symbols or Marketplace content)...`);
         const hasData = await page.waitForFunction(() => {
@@ -517,7 +530,7 @@ export async function scrapeLocalMarketplace(
                    txt.includes("£") || 
                    txt.includes("€") ||
                    txt.includes("Vehicles") ||
-                   document.querySelector('a[href*="/marketplace/item/"]') !== null;
+                   document.querySelector('[role="link"]') !== null;
         }, { timeout: 20000 }).catch(() => false);
 
         if (!hasData) {
@@ -545,13 +558,18 @@ export async function scrapeLocalMarketplace(
             const results: any[] = [];
             const seen = new Set<string>();
 
-            const findIdInAttributes = (el: Element): string | null => {
+            const findIdInElement = (el: Element): string | null => {
+                // 1. Aria-label extraction (v3 finding: IDs are at the end of aria-label)
+                const ariaLabel = el.getAttribute('aria-label') || "";
+                const ariaMatch = ariaLabel.match(/(\d{14,21})$/);
+                if (ariaMatch) return ariaMatch[1];
+
+                // 2. Attribute scan
                 const attrs = el.attributes;
                 for (let i = 0; i < attrs.length; i++) {
                     const value = attrs[i].value;
                     const idMatch = value.match(/(?:\/item\/|[\?&]id=|listing_id=|"id":")(\d{14,21})/);
                     if (idMatch) return idMatch[1];
-                    // Also check for pure long numbers in attributes
                     const longNumMatch = value.match(/^\d{14,21}$/);
                     if (longNumMatch) return value;
                 }
@@ -559,13 +577,13 @@ export async function scrapeLocalMarketplace(
             };
 
             const extractFromElement = (el: Element) => {
-                let id = findIdInAttributes(el);
+                let id = findIdInElement(el);
                 
-                // If no ID in this element, check parents
+                // If no ID in this element, check parents (Scanning up to 10 levels for v3)
                 let curr: Element | null = el;
                 let depth = 0;
-                while (!id && curr && depth < 5) {
-                    id = findIdInAttributes(curr);
+                while (!id && curr && depth < 10) {
+                    id = findIdInElement(curr);
                     curr = curr.parentElement;
                     depth++;
                 }
@@ -573,13 +591,14 @@ export async function scrapeLocalMarketplace(
                 if (!id || seen.has(id)) return;
                 seen.add(id);
 
-                const container = el.closest('div[style*="aspect-ratio"], div.x1gslohp, div.x1n2onr6, div.x1lliihq, [role="link"]') || el.parentElement;
+                const container = el.closest('[role="link"], div[style*="aspect-ratio"], div.x1gslohp, div.x1n2onr6, div.x1lliihq') || el.parentElement;
                 
-                // Aggressive Image Search
+                // Aggressive Image Search (check srcset for high res)
                 const img = el.querySelector('img') || container?.querySelector('img');
-                const imgSrc = img?.getAttribute('src') || 
-                               img?.getAttribute('data-src') || 
-                               img?.getAttribute('srcset')?.split(' ')[0] || "";
+                const rawSrcset = img?.getAttribute('srcset');
+                const imgSrc = (rawSrcset ? rawSrcset.split(',').pop()?.trim().split(' ')[0] : null) || 
+                               img?.getAttribute('src') || 
+                               img?.getAttribute('data-src') || "";
 
                 const textContent = (el as HTMLElement).innerText || (container as HTMLElement)?.innerText || "";
                 const lines = textContent.split('\n').map((l: string) => l.trim()).filter(Boolean);
@@ -602,22 +621,24 @@ export async function scrapeLocalMarketplace(
                 });
             };
 
-            // Strategy 1: Find all elements with price symbols (The most reliable anchor in guest view)
-            const priceElements = Array.from(document.querySelectorAll('*')).filter(el => {
-                return el.children.length === 0 && (el.textContent?.includes('$') || el.textContent?.includes('£') || el.textContent?.includes('€'));
-            });
-            
-            priceElements.forEach(extractFromElement);
+            // Strategy 1: Target all elements with role="link" or specific grid item attributes
+            document.querySelectorAll('[role="link"], a[href*="/item/"], div[data-testid*="marketplace"]').forEach(extractFromElement);
 
-            // Strategy 2: Standard anchors/links as fallback
-            document.querySelectorAll('a[href], [role="link"]').forEach(extractFromElement);
+            // Strategy 2: Fallback to price symbols
+            if (results.length === 0) {
+                const priceElements = Array.from(document.querySelectorAll('*')).filter(el => {
+                    return el.children.length === 0 && (el.textContent?.includes('$') || el.textContent?.includes('£') || el.textContent?.includes('€'));
+                });
+                priceElements.forEach(extractFromElement);
+            }
 
             // Strategy 3: Global Regex on innerHTML for absolute fallback
             if (results.length === 0) {
                 const html = document.documentElement.innerHTML;
                 const idPattern = /(?:"id"|marketplace_listing_id|item_id|fbid=)[^\d]*?["']?(\d{14,21})["']?/g;
                 let m;
-                while ((m = idPattern.exec(html)) !== null && results.length < 100) {
+                let count = 0;
+                while ((m = idPattern.exec(html)) !== null && count < 100) {
                     const id = m[1];
                     if (!seen.has(id)) {
                         seen.add(id);
@@ -627,6 +648,7 @@ export async function scrapeLocalMarketplace(
                             title: "Marketplace Listing",
                             tileText: ""
                         });
+                        count++;
                     }
                 }
             }
