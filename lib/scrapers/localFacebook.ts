@@ -362,18 +362,30 @@ export async function scrapeLocalMarketplace(
       });
       console.log(`[local-eval] Screen State: URL=${currentUrl} | Title="${screenInfo.title}" | Button="${screenInfo.buttonText}" | Snip="${screenInfo.bodySnippet}"`);
 
-      // NEW: Login Wall Detection & Guest Mode Fallback
+      // v7.7: Enhanced Login Wall Detection & Category Deep-Link Fallback
       if (currentUrl.includes("/login/") || screenInfo.bodySnippet.toLowerCase().includes("log in")) {
-          console.log(`[local-eval] Bypass Phase: Login Wall detected. Purging session and forcing Mobile Guest Mode...`);
+          console.log(`[local-eval] Bypass Phase: Persistent Login Wall. Pivoting to Category Deep-Link...`);
           await context.clearCookies();
-          // Force the mobile subdomain and add a Referer to look organic
-          const guestUrl = `https://m.facebook.com/marketplace/${location}/search/?query=car&vertical=CARS_AND_TRUCKS`;
+          
+          // Switch to a Category URL which is often less protected than Search
+          const categoryUrl = `https://m.facebook.com/marketplace/${location}/category/cars`;
+          
+          // Force organic mobile headers
           await page.setExtraHTTPHeaders({ 
               'Referer': 'https://www.google.com/',
+              'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1',
               'Accept-Language': 'en-US,en;q=0.9'
           });
-          await page.goto(guestUrl, { waitUntil: 'networkidle', timeout: 60000 });
-          await page.waitForTimeout(7000);
+          
+          // Attempt a hard navigation to the category page
+          await page.goto(categoryUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+          await page.waitForTimeout(8000);
+          
+          if (loopCount > 10) {
+              console.log(`[local-eval] Bypass Phase: Hard break. Login Wall is impenetrable today.`);
+              break; 
+          }
+          
           loopCount++;
           continue;
       }
