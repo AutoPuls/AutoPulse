@@ -128,7 +128,15 @@ export function ListingDetailModal({
         if (retryTimer) clearTimeout(retryTimer);
       };
     }
-  }, [listing.id]);
+    }
+  }, [
+    listing.id, 
+    listing.condition, 
+    listing.listingUrl, 
+    listing.rawDescription, 
+    listing.description?.length, 
+    isRefreshing
+  ]);
 
   const hasParsedName = listing.make !== "Unknown" && listing.model !== "Unknown";
   const title = hasParsedName

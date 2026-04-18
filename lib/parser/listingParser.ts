@@ -132,7 +132,7 @@ function capitalize(s: string): string {
 export function isJunkTitle(title: string): boolean {
   const low = title.toLowerCase().trim();
   const junkPatterns = [
-    "marketplace listing",
+    "marketplace listing", "explore", "advanced filters enabled",
     "voitures", "bateaux", "bateau", "motos", "moto", "camions", "camion",
     "caravanes", "caravane", "camping-cars", "camping-car",
     "sports mécaniques", "sport mécanique",

@@ -158,6 +158,24 @@ async function saveStoredSession(cookies: any[]) {
     }
 }
 
+interface ListingRaw {
+    externalId: string;
+    url: string;
+    imageUrl: string | null;
+    title: string;
+    tileText: string;
+    description: string | null;
+}
+
+interface ListingRaw {
+    externalId: string;
+    url: string;
+    imageUrl: string | null;
+    title: string;
+    tileText: string;
+    description: string | null;
+}
+
 async function performHeadlessLogin(page: Page): Promise<boolean> {
     const email = process.env.FB_EMAIL;
     const password = process.env.FB_PASSWORD;
@@ -532,7 +550,54 @@ export async function scrapeLocalMarketplace(
     const listings: ListingRaw[] = [];
     const seenIds = new Set<string>();
 
-    const extractFromHtml = (htmlFragment: string) => {
+    const collectFromDom = async () => {
+        const domListings = await page.evaluate(() => {
+            const results: any[] = [];
+            // Target all marketplace item links
+            document.querySelectorAll('a[href*="/marketplace/item/"]').forEach(a => {
+                const href = (a as HTMLAnchorElement).getAttribute('href') || "";
+                const idMatch = href.match(/(?:\/item\/|[\?&]id=)(\d{10,21})/);
+                if (!idMatch) return;
+                const id = idMatch[1];
+                
+                const container = a.closest('div[style*="aspect-ratio"], div.x1gslohp, div.x1n2onr6') || a.parentElement;
+                const img = a.querySelector('img') || container?.querySelector('img');
+                const imgSrc = img?.getAttribute('src') || "";
+                
+                const textContent = (a as HTMLElement).innerText || (container as HTMLElement)?.innerText || "";
+                const lines = textContent.split('\n').map(l => l.trim()).filter(Boolean);
+                
+                let price = "";
+                let title = "";
+                for(const line of lines) {
+                    if (line.includes('$') || line.includes('£') || line.includes('€')) {
+                        if (!price) price = line;
+                    } else if (line.length > 5 && !title) {
+                        title = line;
+                    }
+                }
+
+                results.push({
+                    externalId: id,
+                    imageUrl: imgSrc,
+                    title: title || lines[0] || "Unknown Listing",
+                    tileText: textContent
+                });
+            });
+            return results;
+        });
+
+        for (const item of domListings) {
+            if (!seenIds.has(item.externalId)) {
+                seenIds.add(item.externalId);
+                listings.push({
+                    ...item,
+                    url: `https://www.facebook.com/marketplace/item/${item.externalId}/`,
+                    description: null
+                });
+            }
+        }
+    };
         // --- Strategy 1: Find marketplace item IDs ---
         // Mobile FB can use: /item/ID, /item/?id=ID, or absolute URLs
         const itemIdPattern = /(?:\/item\/|[\?&]id=|listing_id=|marketplace_id=|item_id=)(\d{10,21})/g;
@@ -638,60 +703,48 @@ export async function scrapeLocalMarketplace(
         await new Promise(r => setTimeout(r, scrollDelayMs));
 
         // Step 2: Capture Snapshot (Crucial for virtualization)
-        const currentHtml = await page.content();
-        extractFromHtml(currentHtml);
+        await new Promise(r => setTimeout(r, scrollDelayMs));
+
+        // Step 2: Capture Snapshot via DOM
+        await collectFromDom();
         
         if (i % 5 === 0) {
           console.log(`[local-scraper] Scroll step ${i}: Total items seen so far: ${seenIds.size}`);
         }
     }
 
-    // Step 3: Final fallback for deeply embedded JSON IDs
-    if (listings.length === 0) {
-        console.log('[local-scraper] Cumulative scan found nothing, trying deep JSON ID pattern...');
-        const rawHtml = await page.content();
-        const jsonIdPattern = /(?:"id"|id|listing_id)\s*[:=]\s*["']?(\d{14,21})["']?/g;
-        let jsonMatch: RegExpExecArray | null;
-        while ((jsonMatch = jsonIdPattern.exec(rawHtml)) !== null) {
-            const externalId = jsonMatch[1];
-            if (seenIds.has(externalId)) continue;
-
-            const ctxStart = Math.max(0, jsonMatch.index - 500);
-            const ctxEnd = Math.min(rawHtml.length, jsonMatch.index + 800);
-            const context = rawHtml.substring(ctxStart, ctxEnd);
-
-            const titleMatch =
-                context.match(/"marketplace_listing_title"\s*:\s*"([^"]{3,120})"/) ||
-                context.match(/"listing_title"\s*:\s*"([^"]{3,120})"/) ||
-                context.match(/aria-label=["']([^"']{3,120})["']/);
-            const priceMatch = context.match(/"amount"\s*:\s*["']?(\d+(?:\.\d+)?)["']?/) || context.match(/\$\s*([\d,]+)/);
-            const priceValue2 = parseFloat((priceMatch?.[1] || '0').replace(/,/g, ''));
-            const imgRaw2 = context.match(/"uri"\s*:\s*"(https:[^",]{10,}?\.(?:jpg|jpeg|png|webp)[^",]*)"/);
-            const imageUrl = imgRaw2 ? imgRaw2[1].split('\\/').join('/') : null;
-
-            if (!titleMatch || priceValue2 <= 0) continue;
-
-            const rawTitle = titleMatch![1];
-            const title = rawTitle.replace(/\\u([\dA-Fa-f]{4})/g, (_, h) => String.fromCharCode(parseInt(h, 16))).trim();
-            if (isJunkTitle(title)) continue;
-
-            seenIds.add(externalId);
-            const priceStr = priceMatch?.[1] || '0';
-            const tileText = `$${priceStr} ${title}`;
-
-            console.log(`[local-scraper] ✅ Deep Listing: ${externalId} | "${title.substring(0, 60)}" | $${priceStr}`);
-            listings.push({
-                externalId,
-                url: `https://www.facebook.com/marketplace/item/${externalId}/`,
-                imageUrl,
-                title: title.substring(0, 100),
-                tileText,
-                description: null
-            });
-        }
-    }
+    // Step 3: Final check
+    await collectFromDom();
 
     console.log(`[local-scraper] Total extracted: ${listings.length} listings`);
+
+    // --- Phase 4: Dynamic Enrichment Phase ---
+    // For new listings, visit their detail pages to get full descriptions/images
+    const NEW_ENRICH_LIMIT = 15; // Limit per city run to keep it fast
+    let enrichedCount = 0;
+
+    console.log(`[local-scraper] 💎 Starting Enrichment Phase (Limit: ${NEW_ENRICH_LIMIT})...`);
+    for (const item of listings) {
+        if (enrichedCount >= NEW_ENRICH_LIMIT) break;
+
+        // Only enrich if it doesn't exist or is a generic placeholder
+        const existing = await prisma.listing.findUnique({ 
+            where: { externalId: item.externalId },
+            select: { description: true }
+        });
+
+        if (!existing || !existing.description || existing.description.includes("AutoPulse local capture")) {
+            console.log(`[local-scraper] 🔍 Deep Scanning: ${item.externalId} | "${item.title}"...`);
+            const details = await enrichListingWithPage(page, item.url);
+            if (details) {
+                item.imageUrl = details.imageUrl || item.imageUrl;
+                item.description = details.description;
+                enrichedCount++;
+                // Small gap between detail pages
+                await new Promise(r => setTimeout(r, 1000));
+            }
+        }
+    }
 
     if (listings.length === 0) {
         console.warn(`[local-scraper] No items found for ${location}. Facebook may be blocking or page didn't load.`);
