@@ -364,12 +364,16 @@ export async function scrapeLocalMarketplace(
 
       // NEW: Login Wall Detection & Guest Mode Fallback
       if (currentUrl.includes("/login/") || screenInfo.bodySnippet.toLowerCase().includes("log in")) {
-          console.log(`[local-eval] Bypass Phase: Login Wall detected. Purging session and attempting Guest Mode...`);
+          console.log(`[local-eval] Bypass Phase: Login Wall detected. Purging session and forcing Mobile Guest Mode...`);
           await context.clearCookies();
-          // Use a direct search URL that avoids redirects
-          const guestUrl = `https://www.facebook.com/marketplace/${location}/search?query=car&vertical=CARS_AND_TRUCKS`;
-          await page.goto(guestUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
-          await page.waitForTimeout(5000);
+          // Force the mobile subdomain and add a Referer to look organic
+          const guestUrl = `https://m.facebook.com/marketplace/${location}/search/?query=car&vertical=CARS_AND_TRUCKS`;
+          await page.setExtraHTTPHeaders({ 
+              'Referer': 'https://www.google.com/',
+              'Accept-Language': 'en-US,en;q=0.9'
+          });
+          await page.goto(guestUrl, { waitUntil: 'networkidle', timeout: 60000 });
+          await page.waitForTimeout(7000);
           loopCount++;
           continue;
       }
