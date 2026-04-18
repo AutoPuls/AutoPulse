@@ -310,9 +310,16 @@ export async function scrapeLocalMarketplace(
       console.warn(`[local-scraper] 🆕 No stored session found. Proceeding with guest mobile browse.`);
   }
 
-  const page = await context.newPage();
+   const page = await context.newPage();
 
-  // v4: Force location using numeric IDs to bypass San Francisco sticky drift
+  // v5: Bridge browser console to Node.js logs for deep debugging (local-eval)
+  page.on('console', msg => {
+    if (msg.text().includes('[local-eval]')) {
+        console.log(msg.text());
+    }
+  });
+
+  // v4/v5: Force location using numeric IDs to bypass San Francisco sticky drift
   const FORCED_LOCATION_IDS: Record<string, string> = {
     'chicago': '106149489415840',
     'new-york-city': '108130915873615',
@@ -326,11 +333,12 @@ export async function scrapeLocalMarketplace(
   };
 
   const forcedId = FORCED_LOCATION_IDS[location];
+  // v5: Use /search/ endpoint which is more aggressive about setting location context
   const url = forcedId 
-    ? `https://m.facebook.com/marketplace/category/vehicles?location_id=${forcedId}&sortBy=creation_time_descend&exact=false`
-    : `https://m.facebook.com/marketplace/${location}/vehicles?sortBy=creation_time_descend&exact=false`;
+    ? `https://m.facebook.com/marketplace/${location}/search/?query=car&location_id=${forcedId}&vertical=CARS_AND_TRUCKS`
+    : `https://m.facebook.com/marketplace/${location}/search/?query=car&vertical=CARS_AND_TRUCKS`;
     
-  console.log(`[local-scraper] Searching ${location} ${forcedId ? `(Forced ID: ${forcedId})` : ''} (Mobile View)...`);
+  console.log(`[local-scraper] Searching ${location} ${forcedId ? `(Forced ID: ${forcedId})` : ''} (Search Mode)...`);
 
     try {
         await page.goto(url, { waitUntil: 'load', timeout: 90000 });
@@ -342,12 +350,8 @@ export async function scrapeLocalMarketplace(
             const loginSuccess = await performHeadlessLogin(page);
             if (loginSuccess) {
                 console.log(`[local-scraper] ✅ Automated login attempt finished. Resuming bypass flow...`);
-                // Re-navigate to target after login if needed, though login often redirects to 'next'
-                if (!page.url().includes("/marketplace/")) {
-                    await page.goto(url, { waitUntil: 'load', timeout: 60000 }).catch(() => {});
-                }
-            } else {
-                console.warn(`[local-scraper] ⚠️ Automated login failed or partially blocked.`);
+                // Re-navigate to target after login if needed
+                await page.goto(url, { waitUntil: 'load', timeout: 60000 }).catch(() => {});
             }
         }
 
@@ -526,18 +530,51 @@ export async function scrapeLocalMarketplace(
             }
         }
 
-        // --- LOCATION ENFORCER (v3) ---
-        // Sometimes m.facebook.com sticks to a default city (e.g. San Francisco) even with a city slug.
-        const pageText = await page.evaluate(() => document.body.innerText.substring(0, 5000));
-        const cityLabel = location.replace(/-/g, ' ');
-        // Check if the current page text contains the target city.
-        // If it shows "San Francisco" but we wanted something else, clear cookies and retry once.
-        if (location !== 'san-francisco' && !pageText.toLowerCase().includes(cityLabel.toLowerCase()) && pageText.includes("San Francisco")) {
-            console.warn(`[local-scraper] 📍 Location mismatch detected (Stuck in SF?). Clearing cookies and retrying navigation...`);
-            await page.context().clearCookies();
-            await page.goto(url, { waitUntil: 'load', timeout: 60000 }).catch(() => {});
-            await page.waitForTimeout(5000);
+        // --- LOCATION ENFORCER v5 (Nuclear Interactive Mode) ---
+        const pageTextFull = await page.evaluate(() => document.body.innerText.substring(0, 5000));
+        const cityLabelDisplay = location.replace(/-/g, ' ');
+        const isStuckInSF = location !== 'san-francisco' && 
+                          !pageTextFull.toLowerCase().includes(cityLabelDisplay.toLowerCase()) && 
+                          (pageTextFull.includes("San Francisco") || pageTextFull.includes("Menlo Park"));
+
+        if (isStuckInSF) {
+            console.warn(`[local-scraper] 📍 Location mismatch detected (Stuck in SF/Bay Area). Attempting interactive override...`);
+            
+            try {
+                // Find and click the location filter text (usually "San Francisco, CA")
+                const locLabelSelector = 'div:has-text("San Francisco"), div:has-text("Menlo Park"), div:has-text("CA"):has-text("mi")';
+                const locElement = page.locator(locLabelSelector).first();
+                
+                if (await locElement.isVisible()) {
+                    await locElement.click();
+                    await page.waitForTimeout(2000);
+                    
+                    // On mobile, this often opens a search input for location
+                    // Look for an input with placeholder "Search city, zip code" or similar
+                    const searchInput = page.locator('input[type="text"], input[placeholder*="City"], input[aria-label*="Location"]');
+                    if (await searchInput.isVisible()) {
+                        await searchInput.fill(cityLabelDisplay);
+                        await page.waitForTimeout(1000);
+                        // Pick the first suggestion
+                        await page.keyboard.press('Enter');
+                        await page.waitForTimeout(2000);
+                        
+                        // Click "Apply" or "OK" or "Apply Filters"
+                        const applyBtn = page.locator('div[role="button"]:has-text("Apply"), span:has-text("Apply")').first();
+                        if (await applyBtn.isVisible()) {
+                            await applyBtn.click();
+                            console.log(`[local-scraper] 📍 Location override applied: ${cityLabelDisplay}`);
+                            await page.waitForTimeout(5000);
+                        }
+                    }
+                }
+            } catch (err) {
+                console.warn(`[local-scraper] ⚠️ Interactive location switch failed, attempting cookie reset fallback:`, err);
+                await page.context().clearCookies();
+                await page.goto(url, { waitUntil: 'load', timeout: 60000 }).catch(() => {});
+            }
         }
+
 
         // --- RELIABILITY: Wait for actual listing data ---
         console.log(`[local-scraper] Waiting for listing grid hydration (Price symbols or Marketplace content)...`);
@@ -642,15 +679,17 @@ export async function scrapeLocalMarketplace(
                 });
             };
 
-            // Strategy 1: Target all elements with role="link" or specific grid item attributes
-            document.querySelectorAll('[role="link"], a[href*="/item/"], div[data-testid*="marketplace"]').forEach(extractFromElement);
+            // Strategy 1: Target all elements with role="link" or specific search/marketplace attributes
+            console.log("[local-eval] Strategy 1: Link & Role scan...");
+            document.querySelectorAll('[role="link"], a[href*="/item/"], a[href*="/marketplace/"], div[data-testid*="marketplace"], div[role="listitem"]').forEach(extractFromElement);
 
-            // Strategy 2: Fallback to price symbols
-            if (results.length === 0) {
+            // Strategy 2: Fallback to price symbols if we found very few
+            if (results.length < 5) {
+                console.log("[local-eval] Strategy 2: Price symbol scan...");
                 const priceElements = Array.from(document.querySelectorAll('*')).filter(el => {
                     return el.children.length === 0 && (el.textContent?.includes('$') || el.textContent?.includes('£') || el.textContent?.includes('€'));
                 });
-                priceElements.forEach(extractFromElement);
+                priceElements.forEach(el => extractFromElement(el.parentElement!));
             }
 
             // Strategy 3: Global Regex on innerHTML for absolute fallback
