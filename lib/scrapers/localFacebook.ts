@@ -127,11 +127,22 @@ async function getStoredSession() {
         const session = await prisma.scraperSession.findUnique({
             where: { id: "facebook-default" }
         });
-        return session ? (session.cookies as any[]) : null;
+
+        if (session && session.cookies) {
+            const cookies = session.cookies as any[];
+            // Basic health check: must have c_user or xs to be valid
+            const isAuth = cookies.some(c => c.name === 'c_user');
+            if (isAuth) {
+                console.log(`[local-scraper] 🔑 Valid session found in database.`);
+                return cookies;
+            } else {
+                console.warn(`[local-scraper] ⚠️ Session in DB appears unauthenticated (missing c_user). Skipping...`);
+            }
+        }
     } catch (e) {
         console.warn(`[local-scraper] ⚠️ Failed to load session from DB:`, e);
-        return null;
     }
+    return null;
 }
 
 async function saveStoredSession(cookies: any[]) {
@@ -254,6 +265,7 @@ export async function scrapeLocalMarketplace(
 
   // 1. Load Session (DB -> ENV -> Empty)
   let cookiesToLoad = await getStoredSession();
+  let sessionSource = "database";
   
   if (!cookiesToLoad) {
     const fbCookiesEnv = process.env.FB_COOKIES;
@@ -261,14 +273,13 @@ export async function scrapeLocalMarketplace(
         try {
             const raw = JSON.parse(fbCookiesEnv);
             cookiesToLoad = (Array.isArray(raw) ? raw : Object.values(raw));
-            console.log(`[local-scraper] 🔑 Using cookies from FB_COOKIES env.`);
+            sessionSource = "FB_COOKIES env";
         } catch (e) { /* ignore */ }
     }
-  } else {
-      console.log(`[local-scraper] 🔑 Loaded session from database.`);
   }
 
   if (cookiesToLoad) {
+      console.log(`[local-scraper] 🛡️ Using session from ${sessionSource}.`);
       const mapped = cookiesToLoad.map((c: any) => ({
         name: String(c.name),
         value: String(c.value),
@@ -284,7 +295,7 @@ export async function scrapeLocalMarketplace(
       await context.addCookies(mapped);
       console.log(`[local-scraper] ✅ Injected ${mapped.length} session cookies.`);
   } else {
-      console.warn(`[local-scraper] ⚠️ No session cookies found. Initial login required.`);
+      console.warn(`[local-scraper] 🆕 No stored session found. Initial login required.`);
   }
 
   const page = await context.newPage();
