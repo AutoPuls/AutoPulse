@@ -530,114 +530,118 @@ export async function scrapeLocalMarketplace(
             }
         }
 
-        // --- LOCATION ENFORCER v5 (Nuclear Interactive Mode) ---
+        // --- LOCATION ENFORCER v6 (Nuclear Interactive Mode) ---
         const pageTextFull = await page.evaluate(() => document.body.innerText.substring(0, 5000));
         const cityLabelDisplay = location.replace(/-/g, ' ');
+        // detect SF, Menlo Park, or just "CA" which is a common guest default for the Bay Area
         const isStuckInSF = location !== 'san-francisco' && 
                           !pageTextFull.toLowerCase().includes(cityLabelDisplay.toLowerCase()) && 
-                          (pageTextFull.includes("San Francisco") || pageTextFull.includes("Menlo Park"));
+                          (pageTextFull.includes("San Francisco") || pageTextFull.includes("Menlo Park") || pageTextFull.includes(", CA"));
 
         if (isStuckInSF) {
-            console.warn(`[local-scraper] 📍 Location mismatch detected (Stuck in SF/Bay Area). Attempting interactive override...`);
+            console.warn(`[local-scraper] 📍 Location mismatch detected (Stuck in SF/Bay Area). Attempting v6 interactive override...`);
             
             try {
-                // Find and click the location filter text (usually "San Francisco, CA")
-                const locLabelSelector = 'div:has-text("San Francisco"), div:has-text("Menlo Park"), div:has-text("CA"):has-text("mi")';
+                // Find and click the location filter text
+                // Search Mode UI often has this in a div that looks like "Location · Chicago, IL"
+                const locLabelSelector = 'text=/San Francisco|Menlo Park|CA/i';
                 const locElement = page.locator(locLabelSelector).first();
                 
                 if (await locElement.isVisible()) {
                     await locElement.click();
-                    await page.waitForTimeout(2000);
+                    await page.waitForTimeout(3000);
                     
-                    // On mobile, this often opens a search input for location
-                    // Look for an input with placeholder "Search city, zip code" or similar
-                    const searchInput = page.locator('input[type="text"], input[placeholder*="City"], input[aria-label*="Location"]');
+                    // On mobile, find the search input
+                    const searchInput = page.locator('input[type="text"], input[placeholder*="City"], input[aria-label*="Location"]').first();
                     if (await searchInput.isVisible()) {
-                        await searchInput.fill(cityLabelDisplay);
+                        await searchInput.clear();
+                        await searchInput.type(cityLabelDisplay, { delay: 100 });
                         await page.waitForTimeout(1000);
-                        // Pick the first suggestion
                         await page.keyboard.press('Enter');
                         await page.waitForTimeout(2000);
                         
-                        // Click "Apply" or "OK" or "Apply Filters"
-                        const applyBtn = page.locator('div[role="button"]:has-text("Apply"), span:has-text("Apply")').first();
+                        // Click "Apply" or "OK"
+                        const applyBtn = page.locator('div[role="button"]:has-text("Apply"), span:has-text("Apply"), div:has-text("Apply")').first();
                         if (await applyBtn.isVisible()) {
                             await applyBtn.click();
                             console.log(`[local-scraper] 📍 Location override applied: ${cityLabelDisplay}`);
                             await page.waitForTimeout(5000);
+                        } else {
+                            // If button not found, try Enter one more time on the whole page
+                            await page.keyboard.press('Enter');
                         }
                     }
                 }
             } catch (err) {
-                console.warn(`[local-scraper] ⚠️ Interactive location switch failed, attempting cookie reset fallback:`, err);
-                await page.context().clearCookies();
-                await page.goto(url, { waitUntil: 'load', timeout: 60000 }).catch(() => {});
+                console.warn(`[local-scraper] ⚠️ Interactive location switch failed, using URL anchor fallback:`);
+                // Attempt to append location_id to the URL again if it was stripped
+                if (FORCED_LOCATION_IDS[location]) {
+                    const fallbackUrl = `https://m.facebook.com/marketplace/${location}/search/?query=car&location_id=${FORCED_LOCATION_IDS[location]}`;
+                    await page.goto(fallbackUrl, { waitUntil: 'load', timeout: 30000 }).catch(() => {});
+                }
             }
         }
 
 
         // --- RELIABILITY: Wait for actual listing data ---
-        console.log(`[local-scraper] Waiting for listing grid hydration (Price symbols or Marketplace content)...`);
+        console.log(`[local-scraper] Waiting for listing grid hydration (v6)...`);
         const hasData = await page.waitForFunction(() => {
             const txt = document.body.innerText;
             return txt.includes("$") || 
-                   txt.includes("£") || 
-                   txt.includes("€") ||
                    txt.includes("Vehicles") ||
-                   document.querySelector('[role="link"]') !== null;
+                   document.querySelector('[role="link"]') !== null ||
+                   document.querySelector('a[href*="/item/"]') !== null;
         }, { timeout: 20000 }).catch(() => false);
 
         if (!hasData) {
             const debugText = await page.evaluate(() => document.body.innerText.substring(0, 500).replace(/\s+/g, ' '));
-            const debugUrl = page.url();
-            console.warn(`[local-scraper] ⚠️ No listings detected. URL: ${debugUrl} | Snippet: ${debugText}`);
+            console.warn(`[local-scraper] ⚠️ No listings detected. Snippet: ${debugText}`);
         }
     
     // 2. Scroll to load more (Infinite Scroll logic with Modal Bypass)
     const scrollSteps = Math.max(1, Number(process.env.LOCAL_SCROLL_STEPS ?? 25));
     const scrollDelayMs = Math.max(1000, Number(process.env.LOCAL_SCROLL_DELAY_MS ?? 2500));
     
-    // Wait for at least one listing or a timeout
-    // Wait for at least one price symbol to appear
-    console.log(`[local-scraper] Waiting for listing elements ($ symbol)...`);
-    await page.waitForFunction(() => document.body.innerText.includes("$"), { timeout: 15000 }).catch(() => {
-        console.warn(`[local-scraper] No price symbols ($) found on page after 15s.`);
-    });
-
-    const listings: ListingRaw[] = [];
-    const seenIds = new Set<string>();
-
     const collectFromDom = async () => {
         const domListings = await page.evaluate(() => {
             const results: any[] = [];
             const seen = new Set<string>();
 
-            const findIdInElement = (el: Element): string | null => {
-                // 1. Aria-label extraction (v4: loosened regex searching anywhere in content)
+            // v6: Diagnostic Dumper (show what the browser sees)
+            const allElements = document.querySelectorAll('a, [role="link"], [aria-label]');
+            const diagnostics: string[] = [];
+            allElements.forEach((el, idx) => {
+                if (idx < 20) {
+                    diagnostics.push(`[${idx}] Tag=${el.tagName} Label="${el.getAttribute('aria-label') || ''}" Role="${el.getAttribute('role') || ''}" Href="${(el as any).href || ''}"`);
+                }
+            });
+            console.log("[local-eval] RAW DOM Snapshot: " + diagnostics.join(' | '));
+
+            const findIdInAttributes = (el: Element): string | null => {
+                // 1. Aria-label extraction (loosened regex searching anywhere)
                 const ariaLabel = el.getAttribute('aria-label') || "";
                 const ariaMatch = ariaLabel.match(/(\d{14,21})/);
                 if (ariaMatch) return ariaMatch[1];
 
-                // 2. Attribute scan
+                // 2. Scan EVERY attribute for ID-like patterns
                 const attrs = el.attributes;
                 for (let i = 0; i < attrs.length; i++) {
                     const value = attrs[i].value;
-                    const idMatch = value.match(/(?:\/item\/|[\?&]id=|listing_id=|"id":")(\d{14,21})/);
+                    // Common patterns: /item/ID, id=ID, listing_id=ID, or just the number in a long string
+                    const idMatch = value.match(/(?:\/item\/|[\?&]id=|listing_id=|"id":")(\d{14,21})/) || value.match(/(\d{14,21})/);
                     if (idMatch) return idMatch[1];
-                    const longNumMatch = value.match(/\d{14,21}/);
-                    if (longNumMatch) return value.match(/\d{14,21}/)?.[0] || null;
                 }
                 return null;
             };
 
             const extractFromElement = (el: Element) => {
-                let id = findIdInElement(el);
+                let id = findIdInAttributes(el);
                 
-                // If no ID in this element, check parents (Scanning up to 10 levels for v4)
+                // v6: Nuclear Scan - If no ID, scan up to 10 levels of parents
                 let curr: Element | null = el;
                 let depth = 0;
                 while (!id && curr && depth < 10) {
-                    id = findIdInElement(curr);
+                    id = findIdInAttributes(curr);
                     curr = curr.parentElement;
                     depth++;
                 }
@@ -645,6 +649,7 @@ export async function scrapeLocalMarketplace(
                 if (!id || seen.has(id)) return;
                 seen.add(id);
 
+                // Find a container that likely holds the price/title
                 const container = el.closest('[role="link"], div[style*="aspect-ratio"], div.x1gslohp, div.x1n2onr6, div.x1lliihq') || el.parentElement;
                 
                 // Aggressive Image Search (check srcset for high res)
@@ -655,7 +660,7 @@ export async function scrapeLocalMarketplace(
                                img?.getAttribute('data-src') || "";
 
                 if (results.length < 5 && id) {
-                    console.log(`[local-eval] Diagnostic: ID=${id} Label="${el.getAttribute('aria-label')}" Href="${(el as any).href}"`);
+                    console.log(`[local-eval] ✅ Extracted: ID=${id} Label="${el.getAttribute('aria-label') || ''}"`);
                 }
 
                 const textContent = (el as HTMLElement).innerText || (container as HTMLElement)?.innerText || "";
@@ -679,40 +684,21 @@ export async function scrapeLocalMarketplace(
                 });
             };
 
-            // Strategy 1: Target all elements with role="link" or specific search/marketplace attributes
-            console.log("[local-eval] Strategy 1: Link & Role scan...");
-            document.querySelectorAll('[role="link"], a[href*="/item/"], a[href*="/marketplace/"], div[data-testid*="marketplace"], div[role="listitem"]').forEach(extractFromElement);
-
-            // Strategy 2: Fallback to price symbols if we found very few
+            console.log("[local-eval] Starting Strategy v6: Nuclear ID Scan...");
+            // Target every possible clickable or labeled element
+            document.querySelectorAll('a, [role="link"], [aria-label*="listing"], [aria-label*="Marketplace"], div[role="listitem"]').forEach(extractFromElement);
+            
+            // Secondary: Price-to-Link fallback
             if (results.length < 5) {
-                console.log("[local-eval] Strategy 2: Price symbol scan...");
-                const priceElements = Array.from(document.querySelectorAll('*')).filter(el => {
-                    return el.children.length === 0 && (el.textContent?.includes('$') || el.textContent?.includes('£') || el.textContent?.includes('€'));
-                });
-                priceElements.forEach(el => extractFromElement(el.parentElement!));
-            }
-
-            // Strategy 3: Global Regex on innerHTML for absolute fallback
-            if (results.length === 0) {
-                const html = document.documentElement.innerHTML;
-                const idPattern = /(?:"id"|marketplace_listing_id|item_id|fbid=)[^\d]*?["']?(\d{14,21})["']?/g;
-                let m;
-                let count = 0;
-                while ((m = idPattern.exec(html)) !== null && count < 100) {
-                    const id = m[1];
-                    if (!seen.has(id)) {
-                        seen.add(id);
-                        results.push({
-                            externalId: id,
-                            imageUrl: "",
-                            title: "Marketplace Listing",
-                            tileText: ""
-                        });
-                        count++;
+                console.log("[local-eval] Strategy 2: Global price symbol recovery...");
+                document.querySelectorAll('*').forEach(el => {
+                    const text = el.textContent || "";
+                    if (text.includes('$') && text.length < 20) {
+                        let link = el.closest('a') || el.closest('[role="link"]') || el.parentElement;
+                        if (link) extractFromElement(link);
                     }
-                }
+                });
             }
-
             return results;
         });
 
