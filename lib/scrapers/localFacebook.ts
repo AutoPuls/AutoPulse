@@ -332,16 +332,44 @@ export async function scrapeLocalMarketplace(
     await page.goto(url, { waitUntil: 'load', timeout: 90000 });
     
     let loopCount = 0;
-    while (loopCount < 10) {
+    while (loopCount < 15) {
       const currentUrl = page.url();
       if (currentUrl.includes("/marketplace/")) break;
       
-      const continueBtn = page.locator('button:has-text("Continue"), [role="button"]:has-text("Continue"), button:has-text("Confirm")').first();
+      // Phase 1: Pre-emptive Dialog / Overlay Nuke
+      await page.evaluate(() => {
+          const overlays = document.querySelectorAll('div[role="dialog"], div[aria-modal="true"], div[class*="x78zum5"]');
+          overlays.forEach(el => {
+              if (el.textContent?.includes('Log In') || el.textContent?.includes('Continue') || el.textContent?.includes('cookies')) {
+                   // Keep it if it might be the container of the button we want
+              } else {
+                   (el as HTMLElement).style.display = 'none';
+                   (el as HTMLElement).style.zIndex = '-1';
+              }
+          });
+      });
+
+      const continueBtn = page.locator('button:has-text("Continue"), [role="button"]:has-text("Continue"), [role="button"]:has-text("Confirm"), button:has-text("Confirm")').first();
+      
       if (await continueBtn.isVisible()) {
-        await continueBtn.click();
-        await page.waitForTimeout(5000);
+        console.log(`[local-eval] Bypass Phase: Found button. Attempting Nuclear Click...`);
+        try {
+            // Try forced click first (bypasses pointer-events check)
+            await continueBtn.click({ force: true, timeout: 5000 });
+        } catch (e) {
+            // Final fallback: triggering the DOM event directly
+            console.log(`[local-eval] Bypass Phase: Click intercepted. Falling back to JS click...`);
+            await continueBtn.evaluate(el => (el as HTMLElement).click());
+        }
+        await page.waitForTimeout(3000);
       } else {
-        break;
+        // If we still aren't on marketplace, but no button visible, try a hard reload or just wait
+        await page.waitForTimeout(2000);
+        if (!page.url().includes("/marketplace/")) {
+             console.log(`[local-eval] Bypass Phase: Still not on marketplace. Retrying...`);
+        } else {
+             break;
+        }
       }
       loopCount++;
     }
