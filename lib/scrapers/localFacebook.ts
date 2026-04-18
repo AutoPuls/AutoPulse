@@ -4,7 +4,7 @@ import { parseListingText } from "../parser/listingParser";
 import { MarketplaceScrapeFilters } from "./facebook";
 import { MARKETPLACE_CITIES } from "../cities";
 import { getAlertMatchQueue } from "../queue";
-
+  
 /**
  * AutoPulse Scraper Engine v8.0
  * Optimized for mbasic.facebook.com to bypass redirect loops and login walls.
@@ -80,7 +80,10 @@ export async function scrapeLocalMarketplace(
   }
 
   const page = await context.newPage();
-  const searchUrl = `https://mbasic.facebook.com/marketplace/${location}/search/?query=car`;
+  
+  // v8.1: Corrected mbasic search URL parameters
+  const forcedId = FORCED_LOCATION_IDS[location] || '108130915873615'; // Default NYC
+  const searchUrl = `https://mbasic.facebook.com/marketplace/search/?query=car&location_id=${forcedId}`;
   
   try {
     console.log(`[AutoPulse-v8] 🔍 Protocol: MBASIC | Target: ${searchUrl}`);
@@ -93,13 +96,18 @@ export async function scrapeLocalMarketplace(
         await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
     }
 
-    // Wait for basic content
-    await page.waitForSelector('a[href*="/item/"]', { timeout: 15000 }).catch(() => {
-        console.warn(`[AutoPulse-v8] ⚠️ No items found on first load. Checking for "Accept" buttons...`);
+    // Diagnostics: What kind of links do we see?
+    const linkCount = await page.evaluate(() => {
+        const links = Array.from(document.querySelectorAll('a')).map(a => a.href).slice(0, 10);
+        console.log(`[local-eval] Diagnostic: Found ${document.querySelectorAll('a').length} links. Sample: ${links.join(', ')}`);
+        return links.length;
     });
 
+    // Wait for basic content
+    await page.waitForSelector('a', { timeout: 15000 }).catch(() => {});
+
     // MBASIC "Accept" Bypass
-    const acceptBtn = page.locator('input[value="Accept"], button:has-text("Accept"), button:has-text("Agree")').first();
+    const acceptBtn = page.locator('input[value="Accept"], button:has-text("Accept"), button:has-text("Agree"), a:has-text("Accept")').first();
     if (await acceptBtn.isVisible()) {
         await acceptBtn.click();
         await page.waitForTimeout(3000);
@@ -107,24 +115,24 @@ export async function scrapeLocalMarketplace(
 
     const listings: ListingRaw[] = await page.evaluate(() => {
         const found: any[] = [];
-        // MBASIC grid items are usually inside tables or simple divs
-        document.querySelectorAll('a[href*="/item/"]').forEach(el => {
+        // MBASIC grid items can be generic links with item IDs
+        document.querySelectorAll('a').forEach(el => {
             const href = el.getAttribute('href') || "";
-            const idMatch = href.match(/\/item\/(\d+)/);
+            // Broaden ID match for mbasic URLs
+            const idMatch = href.match(/(?:\/item\/|listing_id=|id=)(\d{14,21})/);
             if (!idMatch) return;
             
             const id = idMatch[1];
             if (found.some(x => x.externalId === id)) return;
 
-            // MBASIC specific traversal
-            const container = el.closest('table') || el.parentElement;
-            const text = container?.innerText || "";
-            const img = (container as HTMLElement)?.querySelector('img')?.src || null;
+            // MBASIC specific traversal: Find the nearest text block
+            const text = el.innerText || el.parentElement?.innerText || "";
+            if (!text.includes('$')) return; // Likely not a listing
 
             found.push({
                 externalId: id,
                 url: `https://www.facebook.com/marketplace/item/${id}/`,
-                imageUrl: img,
+                imageUrl: (el.querySelector('img') as HTMLImageElement)?.src || null,
                 title: text.split('\n')[0] || "Unknown Car",
                 priceRaw: text.match(/\$[\d,kK]+/)?.[0] || "0",
                 locationRaw: text.split('\n').pop() || ""
