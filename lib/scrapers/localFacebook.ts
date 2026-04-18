@@ -680,29 +680,32 @@ export async function scrapeLocalMarketplace(
     console.log(`[local-scraper] Total extracted: ${listings.length} listings`);
 
     // --- Phase 4: Dynamic Enrichment Phase ---
-    // For new listings, visit their detail pages to get full descriptions/images
-    const NEW_ENRICH_LIMIT = 15; // Limit per city run to keep it fast
+    // For new listings (or image-less ones), visit their detail pages to get full descriptions/images
+    const NEW_ENRICH_LIMIT = 60; // Limit per city run
     let enrichedCount = 0;
 
     console.log(`[local-scraper] 💎 Starting Enrichment Phase (Limit: ${NEW_ENRICH_LIMIT})...`);
     for (const item of listings) {
         if (enrichedCount >= NEW_ENRICH_LIMIT) break;
 
-        // Only enrich if it doesn't exist or is a generic placeholder
+        // Enrich if: new listing, missing image, missing/placeholder description
         const existing = await prisma.listing.findUnique({ 
             where: { externalId: item.externalId },
-            select: { description: true }
+            select: { description: true, imageUrl: true }
         });
 
-        if (!existing || !existing.description || existing.description.includes("AutoPulse local capture")) {
-            console.log(`[local-scraper] 🔍 Deep Scanning: ${item.externalId} | "${item.title}"...`);
+        const needsDescription = !existing || !existing.description || existing.description.includes("AutoPulse local capture");
+        const needsImage = !item.imageUrl || item.imageUrl.length === 0 || (!existing?.imageUrl);
+
+        if (needsDescription || needsImage) {
+            console.log(`[local-scraper] 🔍 Deep Scanning: ${item.externalId} | "${item.title}" (img=${needsImage}, desc=${needsDescription})...`);
             const details = await enrichListingWithPage(page, item.url);
             if (details) {
-                item.imageUrl = details.imageUrl || item.imageUrl;
-                item.description = details.description;
+                // Always prefer enriched image over tile-scraped one (higher quality)
+                if (details.imageUrl) item.imageUrl = details.imageUrl;
+                if (details.description) item.description = details.description;
                 enrichedCount++;
-                // Small gap between detail pages
-                await new Promise(r => setTimeout(r, 1000));
+                await new Promise(r => setTimeout(r, 800));
             }
         }
     }
@@ -763,6 +766,7 @@ export async function scrapeLocalMarketplace(
             update: {
                 price: parsedPrice > 0 ? parsedPrice : undefined,
                 imageUrl: item.imageUrl || undefined,
+                description: item.description && !item.description.includes("AutoPulse local capture") ? item.description : undefined,
                 features: parsed.features,
                 rawTitle: item.title,
                 rawDescription: fallbackDescription,
