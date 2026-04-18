@@ -167,15 +167,6 @@ interface ListingRaw {
     description: string | null;
 }
 
-interface ListingRaw {
-    externalId: string;
-    url: string;
-    imageUrl: string | null;
-    title: string;
-    tileText: string;
-    description: string | null;
-}
-
 async function performHeadlessLogin(page: Page): Promise<boolean> {
     const email = process.env.FB_EMAIL;
     const password = process.env.FB_PASSWORD;
@@ -546,7 +537,6 @@ export async function scrapeLocalMarketplace(
         console.warn(`[local-scraper] No price symbols ($) found on page after 15s.`);
     });
 
-    const listingsSource: string[] = [];
     const listings: ListingRaw[] = [];
     const seenIds = new Set<string>();
 
@@ -596,80 +586,6 @@ export async function scrapeLocalMarketplace(
                     description: null
                 });
             }
-        }
-    };
-        // --- Strategy 1: Find marketplace item IDs ---
-        // Mobile FB can use: /item/ID, /item/?id=ID, or absolute URLs
-        const itemIdPattern = /(?:\/item\/|[\?&]id=|listing_id=|marketplace_id=|item_id=)(\d{10,21})/g;
-        let idMatch: RegExpExecArray | null;
-        while ((idMatch = itemIdPattern.exec(htmlFragment)) !== null) {
-            const externalId = idMatch[1];
-            if (seenIds.has(externalId)) continue;
-            seenIds.add(externalId);
-    
-            // Convert mobile URL to desktop URL for the database
-            const url = `https://www.facebook.com/marketplace/item/${externalId}/`;
-            
-            // Pull surrounding context
-            const ctxStart = Math.max(0, idMatch.index - 1000);
-            const ctxEnd = Math.min(htmlFragment.length, idMatch.index + 1000);
-            const context = htmlFragment.substring(ctxStart, ctxEnd);
-    
-            // Title — on mobile, sometimes it's easier to find in aria-labels or neighboring text
-            const strictTitleMatch =
-                context.match(/"marketplace_listing_title"\s*:\s*"([^"]{3,120})"/) ||
-                context.match(/"title"\s*:\s*"([^"]{3,120})"/) ||
-                context.match(/aria-label=["']([^"']{3,120})["']/) ||
-                context.match(/>([^<]{3,125})<\/div>/);
-
-            // Price — compute early
-            const priceMatchEarly =
-                context.match(/"amount"\s*:\s*["']?(\d+(?:\.\d+)?)["']?/) || 
-                context.match(/\$\s*([\d,]+)/);
-            const priceValueEarly = parseFloat((priceMatchEarly?.[1] || '0').replace(/,/g, ''));
-
-            const nameFallback = priceValueEarly > 0
-                ? context.match(/"name"\s*:\s*"([^"]{5,120})"/) ?? null
-                : null;
-            const titleMatch = strictTitleMatch || nameFallback;
-
-            const priceValue = priceValueEarly;
-
-            // Image — uri field pointing to CDN
-            const imgRaw = 
-                context.match(/"primary_listing_photo"\s*:\s*{\s*"image"\s*:\s*{\s*"uri"\s*:\s*"(https:[^",]{10,}?\.(?:jpg|jpeg|png|webp)[^",]*)"/) ||
-                context.match(/"preferred_thumbnail"\s*:\s*{\s*"image"\s*:\s*{\s*"uri"\s*:\s*"(https:[^",]{10,}?\.(?:jpg|jpeg|png|webp)[^",]*)"/) ||
-                context.match(/<img[^>]+src=["'](https:\/\/[^"']+\.(?:jpg|jpeg|png|webp)[^"']*)["']/) ||
-                context.match(/"uri"\s*:\s*"(https:[^",]{10,}?\.(?:jpg|jpeg|png|webp)[^",]*)"/);
-            const imageUrl = imgRaw ? imgRaw[1].split('\\/').join('/') : null;
-            
-            if (!imageUrl || imageUrl.trim().length === 0) continue;
-
-            const descMatch = 
-                context.match(/"listing_description"\s*:\s*{\s*"text"\s*:\s*"([^"]{10,10000}?)"\s*}/) ||
-                context.match(/"redacted_description"\s*:\s*{\s*"text"\s*:\s*"([^"]{10,10000}?)"\s*}/) ||
-                context.match(/"description"\s*:\s*{\s*"text"\s*:\s*"([^"]{10,10000}?)"\s*}/);
-            
-            const rawDescription = descMatch ? descMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\u([\dA-Fa-f]{4})/g, (_, h) => String.fromCharCode(parseInt(h, 16))) : null;
-
-            if (!titleMatch || priceValue <= 0) continue;
-
-            const rawTitle = titleMatch![1];
-            const title = rawTitle.replace(/\\u([\dA-Fa-f]{4})/g, (_, h) => String.fromCharCode(parseInt(h, 16))).trim();
-
-            if (isJunkTitle(title)) continue;
-
-            const priceStr = priceMatchEarly?.[1] || '0';
-            const tileText = `$${priceStr} ${title}`;
-
-            listings.push({
-                externalId,
-                url: `https://www.facebook.com/marketplace/item/${externalId}/`,
-                imageUrl,
-                title: title.substring(0, 100),
-                tileText,
-                description: rawDescription
-            });
         }
     };
 
@@ -860,13 +776,6 @@ export async function scrapeLocalMarketplace(
         }
     }
     console.log(`[local-scraper] ${location}: Successfully upserted ${upserted} listings.`);
-
-    // Enrichment is now handled on-demand by the user to save resources
-    /*
-    const enrichLimit = Math.max(0, Number(process.env.LOCAL_ENRICH_LIMIT ?? 10));
-    ...
-    console.log(`[local-scraper] Enriched ${enriched}/${candidates.length} listings in ${location}.`);
-    */
 
     await browser.close();
     return { scraped: listings.length, upserted };
