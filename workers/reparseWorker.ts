@@ -62,7 +62,7 @@ export const reparseWorker = new Worker(
             { imageUrl: null },
             { imageUrl: "" },
           ],
-          listingUrl: { not: null },
+          NOT: { listingUrl: null },
         },
         select: { id: true, listingUrl: true, externalId: true },
         take: 50,
