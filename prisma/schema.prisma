@@ -102,3 +102,9 @@ model NotificationLog {
   @@index([subscriptionId])
   @@index([listingId])
 }
+
+model ScraperSession {
+  id        String   @id @default("facebook-default")
+  cookies   Json
+  updatedAt DateTime @updatedAt
+}

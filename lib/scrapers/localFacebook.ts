@@ -122,6 +122,70 @@ export class FacebookAuthError extends Error {
   }
 }
 
+async function getStoredSession() {
+    try {
+        const session = await prisma.scraperSession.findUnique({
+            where: { id: "facebook-default" }
+        });
+        return session ? (session.cookies as any[]) : null;
+    } catch (e) {
+        console.warn(`[local-scraper] ⚠️ Failed to load session from DB:`, e);
+        return null;
+    }
+}
+
+async function saveStoredSession(cookies: any[]) {
+    try {
+        await prisma.scraperSession.upsert({
+            where: { id: "facebook-default" },
+            update: { cookies, updatedAt: new Date() },
+            create: { id: "facebook-default", cookies, updatedAt: new Date() }
+        });
+        console.log(`[local-scraper] 💾 Saved session to database (${cookies.length} cookies).`);
+    } catch (e) {
+        console.warn(`[local-scraper] ⚠️ Failed to save session to DB:`, e);
+    }
+}
+
+async function performHeadlessLogin(page: Page): Promise<boolean> {
+    const email = process.env.FB_EMAIL;
+    const password = process.env.FB_PASSWORD;
+
+    if (!email || !password) {
+        console.error(`[local-scraper] 🚨 FB_EMAIL or FB_PASSWORD missing. Cannot perform auto-login.`);
+        return false;
+    }
+
+    console.log(`[local-scraper] 🔐 Starting automated login for ${email.substring(0, 3)}...`);
+    
+    try {
+        await page.goto("https://www.facebook.com/login", { waitUntil: 'networkidle', timeout: 60000 });
+        
+        // 1. Fill credentials
+        await page.fill('input[name="email"]', email);
+        await page.fill('input[name="pass"]', password);
+        await page.waitForTimeout(1000 + Math.random() * 1000);
+        
+        // 2. Click Login
+        const loginBtn = page.locator('button[name="login"], #loginbutton').first();
+        await loginBtn.click();
+        
+        // 3. Wait for navigation or checkpoint
+        await page.waitForNavigation({ waitUntil: 'load', timeout: 60000 }).catch(() => {});
+        
+        const currentUrl = page.url();
+        if (currentUrl.includes("checkpoint") || currentUrl.includes("login/device-based")) {
+            console.warn(`[local-scraper] ⚠️ Checkpoint detected during login. Manual interaction might be needed.`);
+            // We usually continue to let the bypass loop handle the "Continue" buttons
+        }
+        
+        return true;
+    } catch (e) {
+        console.error(`[local-scraper] 🚨 Login failed:`, e);
+        return false;
+    }
+}
+
 export async function scrapeLocalMarketplace(
   location: string,
   filters: MarketplaceScrapeFilters = {}
@@ -144,12 +208,24 @@ export async function scrapeLocalMarketplace(
     }
   });
 
-  // Inject Facebook session cookies
-  const fbCookiesEnv = process.env.FB_COOKIES;
-  if (fbCookiesEnv) {
-    try {
-      const raw = JSON.parse(fbCookiesEnv);
-      const cookies = (Array.isArray(raw) ? raw : Object.values(raw)).map((c: any) => ({
+  // 1. Load Session (DB -> ENV -> Empty)
+  let cookiesToLoad = await getStoredSession();
+  
+  if (!cookiesToLoad) {
+    const fbCookiesEnv = process.env.FB_COOKIES;
+    if (fbCookiesEnv) {
+        try {
+            const raw = JSON.parse(fbCookiesEnv);
+            cookiesToLoad = (Array.isArray(raw) ? raw : Object.values(raw));
+            console.log(`[local-scraper] 🔑 Using cookies from FB_COOKIES env.`);
+        } catch (e) { /* ignore */ }
+    }
+  } else {
+      console.log(`[local-scraper] 🔑 Loaded session from database.`);
+  }
+
+  if (cookiesToLoad) {
+      const mapped = cookiesToLoad.map((c: any) => ({
         name: String(c.name),
         value: String(c.value),
         domain: String(c.domain || '.facebook.com').replace(/^\.?/, '.'),
@@ -161,20 +237,10 @@ export async function scrapeLocalMarketplace(
         secure: Boolean(c.secure ?? true),
         sameSite: (c.sameSite === 'no_restriction' ? 'None' : (c.sameSite === 'lax' ? 'Lax' : (c.sameSite === 'strict' ? 'Strict' : 'Lax'))) as any,
       }));
-      const hasCUser = cookies.some(c => c.name === 'c_user');
-      const hasXS = cookies.some(c => c.name === 'xs');
-      console.log(`[local-scraper] 🔑 Cookie check: c_user=${hasCUser}, xs=${hasXS}`);
-      if (!hasCUser || !hasXS) {
-          console.warn(`[local-scraper] ⚠️ WARNING: Missing critical session cookies (c_user/xs). Bypass might fail.`);
-      }
-
-      await context.addCookies(cookies);
-      console.log(`[local-scraper] ✅ Loaded ${cookies.length} Facebook cookies`);
-    } catch (e) {
-      console.warn(`[local-scraper] ⚠️ Failed to parse FB_COOKIES:`, e);
-    }
+      await context.addCookies(mapped);
+      console.log(`[local-scraper] ✅ Injected ${mapped.length} session cookies.`);
   } else {
-    console.warn(`[local-scraper] ⚠️ FB_COOKIES not set — IP redirect highly likely.`);
+      console.warn(`[local-scraper] ⚠️ No session cookies found. Initial login required.`);
   }
 
   const page = await context.newPage();
@@ -185,6 +251,22 @@ export async function scrapeLocalMarketplace(
     try {
         await page.goto(url, { waitUntil: 'load', timeout: 90000 });
         
+        // --- AUTO-LOGIN TRIGGER ---
+        const currentUrl = page.url();
+        if (currentUrl.includes("/login/") || currentUrl.includes("checkpoint")) {
+            console.log(`[local-scraper] 🔄 Login/Checkpoint detected. Attempting automated login fallback...`);
+            const loginSuccess = await performHeadlessLogin(page);
+            if (loginSuccess) {
+                console.log(`[local-scraper] ✅ Automated login attempt finished. Resuming bypass flow...`);
+                // Re-navigate to target after login if needed, though login often redirects to 'next'
+                if (!page.url().includes("/marketplace/")) {
+                    await page.goto(url, { waitUntil: 'load', timeout: 60000 }).catch(() => {});
+                }
+            } else {
+                console.warn(`[local-scraper] ⚠️ Automated login failed or partially blocked.`);
+            }
+        }
+
         // --- DIAGNOSTICS ---
         const finalUrl = page.url();
         const pageTitle = await page.title();
@@ -206,9 +288,10 @@ export async function scrapeLocalMarketplace(
 
         // --- RELIABILITY: Ultra-Persistent Multi-stage Session Bypass ---
         let loopCount = 0;
-        const maxLoops = 30; // Increased to handle deep checkpoint chains
+        const maxLoops = 40; // Increased further for complex checkpoints
         let bypassSuccessful = false;
         let lastUrl = page.url();
+        let homeRedirected = false;
 
         while (loopCount < maxLoops) {
             const currentUrl = page.url();
@@ -216,11 +299,29 @@ export async function scrapeLocalMarketplace(
             
             // If the URL has not changed for 2 iterations despite clicking, try a reload or keyboard press
             if (loopCount > 0 && loopCount % 2 === 0 && currentUrl === lastUrl) {
-                console.log(`[local-scraper] 🔄 URL stuck at ${currentUrl}. Sending "Enter" key...`);
+                console.log(`[local-scraper] 🔄 URL stuck at ${currentUrl}. Sending "Tab" + "Enter"...`);
+                await page.keyboard.press('Tab');
+                await page.waitForTimeout(500);
                 await page.keyboard.press('Enter');
                 await page.waitForTimeout(5000);
             }
+            
+            // If stuck mid-way and haven't tried Home, try a "warm up" navigation
+            if (loopCount === 15 && !homeRedirected && !currentUrl.includes("/marketplace/")) {
+                console.log(`[local-scraper] 🔄 Mid-loop recovery: Navigating to Home to anchor session...`);
+                await page.goto("https://www.facebook.com/", { waitUntil: 'load', timeout: 30000 }).catch(() => {});
+                await page.waitForTimeout(3000);
+                homeRedirected = true;
+                continue; // Re-evaluate at the new URL
+            }
+            
             lastUrl = currentUrl;
+
+            // Check if we already reached Marketplace during a bypass step
+            if (currentUrl.includes("/marketplace/")) {
+                bypassSuccessful = true;
+                break;
+            }
             
             // 1. Proactive Checkbox Handling (Enhanced Evaluation)
             try {
@@ -255,7 +356,13 @@ export async function scrapeLocalMarketplace(
                 'div[role="button"]:has-text("Confirm")',
                 'button:has-text("Yes")',
                 'button:has-text("This was me")',
-                '[aria-label*="Continue"]'
+                '[aria-label*="Continue"]',
+                'text="Log In"',
+                'button:has-text("Log In")',
+                'div[role="button"]:has-text("Log In")',
+                '[aria-label*="Log In"]',
+                'text="Keep using this browser"',
+                'a:has-text("Continue")'
             ];
             
             let actionTaken = false;
@@ -273,13 +380,47 @@ export async function scrapeLocalMarketplace(
                 } catch (e) { /* ignore */ }
             }
 
+            // Special: Account Chooser / "Continue as..."
             if (!actionTaken) {
-                console.warn(`[local-scraper] ⚠️ No bypass actions found on step ${loopCount + 1}.`);
-                if (currentUrl.includes("/login/")) break;
+                try {
+                    // Look for profile images or mentions of names that look like account choices
+                    const accountChoice = await page.evaluate(() => {
+                        const items = document.querySelectorAll('div[role="link"], div[role="button"]');
+                        for (const item of Array.from(items)) {
+                            const text = item.textContent || "";
+                            if (text.length > 2 && text.length < 50 && !text.includes("Log In") && !text.includes("Create")) {
+                                (item as HTMLElement).click();
+                                return text;
+                            }
+                        }
+                        return null;
+                    });
+                    if (accountChoice) {
+                        console.log(`[local-scraper] 🔄 Clicking potential account choice: "${accountChoice}"`);
+                        await page.waitForTimeout(5000);
+                        actionTaken = true;
+                    }
+                } catch (e) { /* ignore */ }
+            }
+
+            if (!actionTaken) {
+                if (loopCount > 0 && loopCount % 5 === 0) {
+                    console.warn(`[local-scraper] ⚠️ No bypass actions found on step ${loopCount + 1}. Page snippet: ${await page.evaluate(() => document.body.innerText.substring(0, 100))}`);
+                }
+                
+                if (currentUrl.includes("/login/") && !currentUrl.includes("next=")) {
+                    // We are on a hard login page without a return path, cookies likely dead
+                    console.error(`[local-scraper] 🚨 Hard login detected without redirect. Cookies are likely expired.`);
+                    break;
+                }
                 await page.waitForTimeout(3000);
             }
 
             loopCount++;
+        }
+
+        if (loopCount >= maxLoops) {
+            console.error(`[local-scraper] 🚨 Bypass loop exceeded max steps (${maxLoops}). Session is likely stuck or cookies are invalid.`);
         }
 
         // Final settling and re-navigation
@@ -292,6 +433,13 @@ export async function scrapeLocalMarketplace(
                 
                 console.log(`[local-scraper] 🔄 Final re-navigation to target Marketplace: ${url}`);
                 await page.goto(url, { waitUntil: 'load', timeout: 60000 }).catch(() => {});
+            }
+
+            // --- SESSION PERSISTENCE ---
+            // If we've successfully reached Marketplace or Home after a bypass/login, save the cookies
+            const newCookies = await context.cookies();
+            if (newCookies.some(c => c.name === 'c_user')) {
+                await saveStoredSession(newCookies);
             }
         }
 
