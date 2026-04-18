@@ -332,16 +332,52 @@ export async function scrapeLocalMarketplace(
     await page.goto(url, { waitUntil: 'load', timeout: 90000 });
     
     let loopCount = 0;
-    while (loopCount < 15) {
+    let lastUrl = "";
+    let stuckCount = 0;
+
+    while (loopCount < 20) {
       const currentUrl = page.url();
       if (currentUrl.includes("/marketplace/")) break;
       
-      // Phase 1: Pre-emptive Dialog / Overlay Nuke
+      // Stuck Detection: If URL hasn't changed for multiple loops, force a reload
+      if (currentUrl === lastUrl) {
+          stuckCount++;
+      } else {
+          stuckCount = 0;
+          lastUrl = currentUrl;
+      }
+
+      // Phase 1: Detailed Diagnostics
+      const screenInfo = await page.evaluate(() => {
+          const btn = Array.from(document.querySelectorAll('button, [role="button"]'))
+                           .find(el => {
+                               const t = el.textContent?.toLowerCase() || "";
+                               return t.includes('continue') || t.includes('confirm') || t.includes('accept') || t.includes('agree');
+                           });
+          return {
+              title: document.title,
+              buttonText: btn?.textContent?.trim() || "None",
+              bodySnippet: document.body.innerText.substring(0, 150).replace(/\n/g, ' ')
+          };
+      });
+      console.log(`[local-eval] Screen State: URL=${currentUrl} | Title="${screenInfo.title}" | Button="${screenInfo.buttonText}" | Snip="${screenInfo.bodySnippet}"`);
+
+      if (stuckCount > 3) {
+          console.log(`[local-eval] Bypass Phase: Stuck on same state for 3 loops. Reloading page...`);
+          await page.reload({ waitUntil: 'load' });
+          stuckCount = 0;
+          await page.waitForTimeout(3000);
+          loopCount++;
+          continue;
+      }
+
+      // Phase 2: Pre-emptive Dialog / Overlay Nuke
       await page.evaluate(() => {
           const overlays = document.querySelectorAll('div[role="dialog"], div[aria-modal="true"], div[class*="x78zum5"]');
           overlays.forEach(el => {
-              if (el.textContent?.includes('Log In') || el.textContent?.includes('Continue') || el.textContent?.includes('cookies')) {
-                   // Keep it if it might be the container of the button we want
+              const text = el.textContent?.toLowerCase() || "";
+              if (text.includes('log in') || text.includes('continue') || text.includes('confirm') || text.includes('accept')) {
+                   // Possible interactive element, don't hide yet
               } else {
                    (el as HTMLElement).style.display = 'none';
                    (el as HTMLElement).style.zIndex = '-1';
@@ -349,24 +385,20 @@ export async function scrapeLocalMarketplace(
           });
       });
 
-      const continueBtn = page.locator('button:has-text("Continue"), [role="button"]:has-text("Continue"), [role="button"]:has-text("Confirm"), button:has-text("Confirm")').first();
+      const continueBtn = page.locator('button:has-text("Continue"), [role="button"]:has-text("Continue"), [role="button"]:has-text("Confirm"), button:has-text("Confirm"), button:has-text("Accept"), button:has-text("Agree")').first();
       
       if (await continueBtn.isVisible()) {
-        console.log(`[local-eval] Bypass Phase: Found button. Attempting Nuclear Click...`);
+        console.log(`[local-eval] Bypass Phase: Found "${screenInfo.buttonText}". Attempting Nuclear Click...`);
         try {
-            // Try forced click first (bypasses pointer-events check)
             await continueBtn.click({ force: true, timeout: 5000 });
         } catch (e) {
-            // Final fallback: triggering the DOM event directly
-            console.log(`[local-eval] Bypass Phase: Click intercepted. Falling back to JS click...`);
             await continueBtn.evaluate(el => (el as HTMLElement).click());
         }
         await page.waitForTimeout(3000);
       } else {
-        // If we still aren't on marketplace, but no button visible, try a hard reload or just wait
         await page.waitForTimeout(2000);
         if (!page.url().includes("/marketplace/")) {
-             console.log(`[local-eval] Bypass Phase: Still not on marketplace. Retrying...`);
+             console.log(`[local-eval] Bypass Phase: No button visible, but not on marketplace. Retrying...`);
         } else {
              break;
         }
