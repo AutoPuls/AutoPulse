@@ -14,6 +14,14 @@ function createPrismaClient() {
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 60000, // Increase timeout to 60s for stability
   });
+
+  pool.on('error', (err) => {
+    console.error('[db-pool] Unexpected error on idle client:', err.message);
+  });
+
+  pool.on('connect', () => {
+    console.log('[db-pool] Low-level client connected to database');
+  });
   const adapter = new PrismaPg(pool);
   return new PrismaClient({
     adapter,
