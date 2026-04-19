@@ -6,24 +6,31 @@ import { vehicleTokenWhere, cityTokenWhere } from "./listingTextWhere";
  * Finds all active subscriptions that match a given listing's attributes.
  */
 export async function findMatchingSubscriptions(listing: Listing): Promise<Subscription[]> {
-  // We want to find subscriptions where:
-  // (sub.make is null OR sub.make == listing.make) AND
-  // (sub.model is null OR sub.model == listing.model) AND
-  // (sub.yearMin is null OR listing.year >= sub.yearMin) AND ...
+  // --- GLOBAL MOTORCYCLE/JUNK FILTER ---
+  const blockRegex = /\b(motorcycle|scooter|moped|dirt bike|atv|utv|harley|yamaha|ninja|tao|grom|ducati|kawasaki|vespa|polaris|can-am|sea-doo|ski-doo|snowmobile|rv|camper|trailer|boat|jet ski)\b/i;
+  const titleText = (listing.rawTitle || "").toLowerCase();
   
+  if (blockRegex.test(titleText)) {
+    console.log(`[alertMatcher] Blocking notification for non-car vehicle: ${listing.rawTitle}`);
+    return [];
+  }
+  // ------------------------------------
+
   const where: Prisma.SubscriptionWhereInput = {
     AND: [
       // Make/Model matching (Case insensitive contains or exact)
       {
         OR: [
           { make: null },
-          { make: { equals: listing.make, mode: 'insensitive' } },
+          { make: { equals: listing.make?.trim(), mode: 'insensitive' } },
+          { make: { equals: listing.make?.trim() + " ", mode: 'insensitive' } }, // Handle common trailing space in DB
         ]
       },
       {
         OR: [
           { model: null },
-          { model: { equals: listing.model, mode: 'insensitive' } },
+          { model: { equals: listing.model?.trim(), mode: 'insensitive' } },
+          { model: { equals: listing.model?.trim() + " ", mode: 'insensitive' } },
         ]
       },
       // Numeric ranges

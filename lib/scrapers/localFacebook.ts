@@ -220,6 +220,10 @@ export async function scrapeLocalMarketplace(
             }
 
             title = title.replace(/,$/, '').trim() || "Unknown Vehicle";
+
+            // Block motorcycles, ATVs, scooters, and boats
+            const blockRegex = /\b(motorcycle|scooter|moped|dirt bike|atv|utv|harley|yamaha|ninja|tao|grom|ducati|kawasaki|vespa|polaris|can-am|sea-doo|ski-doo|snowmobile|rv|camper|trailer)\b/i;
+            if (blockRegex.test(title)) return;
             
             found.push({
                 externalId: id,
@@ -273,9 +277,18 @@ export async function scrapeLocalMarketplace(
             }
         });
 
-        // 🚨 DISABLED BULLMQ: We were hitting Redis OOM (Out of Memory) because the fast scraper 
-        // pumps 100k listings into the waiting queue instantly. 
-        // agency_sweep.ts now handles bulk enrichment natively using enrichListingsBulkLocally().
+        // Trigger alert matching immediately for new listings (Lightweight)
+        try {
+            const matchQueue = getAlertMatchQueue();
+            await matchQueue.add("matchListing", { listingId: item.externalId }, { 
+                removeOnComplete: true,
+                jobId: `match-fast-${item.externalId}` // Deduplicate if multiple cities find same car
+            });
+        } catch (e) {}
+
+        // 🚨 DISABLED BULLMQ ENRICHMENT: We were hitting Redis OOM (Out of Memory)
+        // because the fast scraper pumps 100k listings into the waiting queue instantly. 
+        // agency_sweep.ts now handles bulk enrichment natively.
         /* 
         try {
             const enrichQueue = getEnrichmentQueue();
