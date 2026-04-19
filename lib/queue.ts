@@ -14,6 +14,7 @@ let scrapeQueue: Queue | null = null;
 let notificationsQueue: Queue | null = null;
 let alertMatchQueue: Queue | null = null;
 let reparseQueue: Queue | null = null;
+let enrichmentQueue: Queue | null = null;
 
 const defaultJobRetries = {
   attempts: 3,
@@ -70,4 +71,14 @@ export function getReparseQueue(): Queue {
     });
   }
   return reparseQueue;
+}
+
+export function getEnrichmentQueue(): Queue {
+  if (!enrichmentQueue) {
+    enrichmentQueue = new Queue("enrichment", {
+      connection: getRedisConnection(),
+      defaultJobOptions: defaultJobRetries,
+    });
+  }
+  return enrichmentQueue;
 }

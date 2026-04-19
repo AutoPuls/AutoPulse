@@ -4,7 +4,7 @@ import { prisma } from "../prisma";
 import { parseListingText } from "../parser/listingParser";
 import { MarketplaceScrapeFilters } from "./facebook";
 import { MARKETPLACE_CITIES } from "../cities";
-import { getAlertMatchQueue } from "../queue";
+import { getAlertMatchQueue, getEnrichmentQueue } from "../queue";
   
 /**
  * AutoPulse Scraper Engine v8.0
@@ -194,7 +194,7 @@ export async function scrapeLocalMarketplace(
     let upserted = 0;
     const foundCity = MARKETPLACE_CITIES.find(c => c.slug === location);
     
-    for (const item of listings.slice(0, 50)) {
+    for (const item of listings.slice(0, 100)) {
         const priceCents = parseTilePriceToCents(item.priceRaw);
         if (priceCents <= 0) continue;
 
@@ -223,10 +223,10 @@ export async function scrapeLocalMarketplace(
             }
         });
 
-        // Queue enrichment if needed
+        // Queue enrichment instead of matching directly to get full info (most recent cars)
         try {
-            const q = getAlertMatchQueue();
-            await q.add("matchListing", { listingId: item.externalId }, { removeOnComplete: true });
+            const enrichQueue = getEnrichmentQueue();
+            await enrichQueue.add("enrichListing", { listingId: item.externalId }, { removeOnComplete: true });
         } catch (e) {}
         
         upserted++;
@@ -249,12 +249,74 @@ export async function scrapeLocalMarketplace(
   }
 }
 
-export async function enrichListingLocally(url: string) {
-    console.log(`[AutoPulse-v8] 📈 Enrichment placeholder for ${url}`);
-    return {
-        imageUrl: null,
-        description: null,
-        postedAt: null,
-        priceCents: 0
-    };
+export async function enrichListingLocally(listingId: string) {
+    console.log(`[AutoPulse-v8] 📈 Deep Enrichment for ${listingId}...`);
+    
+    // 1. Fetch listing details to get the URL
+    const listing = await prisma.listing.findUnique({
+        where: { externalId: listingId }
+    });
+    if (!listing) return null;
+
+    const browser = await chromium.launch({ 
+        args: ['--disable-blink-features=AutomationControlled', '--no-sandbox'],
+        headless: true 
+    });
+    const context = await browser.newContext({
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        viewport: { width: 1280, height: 800 }
+    });
+    const page = await context.newPage();
+
+    try {
+        await page.goto(listing.listingUrl, { waitUntil: 'networkidle', timeout: 60000 });
+        
+        // Dismiss modals
+        await page.waitForTimeout(2000);
+        await page.keyboard.press('Escape');
+
+        const details = await page.evaluate(() => {
+            const descriptionEl = Array.from(document.querySelectorAll('span')).find(s => s.innerText?.length > 100 && !s.innerText.includes('marketplace'));
+            const imageEls = Array.from(document.querySelectorAll('img')).filter(img => img.src?.includes('scontent') && img.width > 200).map(img => img.src);
+            
+            // Extract specific list items (Mileage, etc.)
+            const spans = Array.from(document.querySelectorAll('span'));
+            const mileageSpan = spans.find(s => s.innerText.toLowerCase().includes('miles') || s.innerText.toLowerCase().includes('km'));
+            
+            return {
+                description: descriptionEl?.innerText || null,
+                images: Array.from(new Set(imageEls)).slice(0, 10),
+                mileageRaw: mileageSpan?.innerText || null
+            };
+        });
+
+        if (details.description) {
+            const parsed = parseListingText(listing.rawTitle || "", details.description);
+            
+            await prisma.listing.update({
+                where: { externalId: listingId },
+                data: {
+                    description: details.description,
+                    rawDescription: details.description,
+                    mileage: parsed.mileage || listing.mileage,
+                    transmission: parsed.transmission || listing.transmission,
+                    fuelType: parsed.fuelType || listing.fuelType,
+                    driveType: parsed.driveType || listing.driveType,
+                    titleStatus: parsed.titleStatus || listing.titleStatus,
+                    condition: parsed.condition || listing.condition,
+                    imageUrl: details.images[0] || listing.imageUrl,
+                    updatedAt: new Date(),
+                }
+            });
+            console.log(`[AutoPulse-v8] ✨ Enrichment successful for ${listingId}`);
+            return true;
+        }
+
+        return false;
+    } catch (err) {
+        console.error(`[AutoPulse-v8] ❌ Enrichment failed for ${listingId}:`, err);
+        return false;
+    } finally {
+        await browser.close();
+    }
 }

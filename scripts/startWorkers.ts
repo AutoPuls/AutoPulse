@@ -4,6 +4,7 @@ import cron from "node-cron";
 import { getNotificationsQueue, getScrapeQueue, getReparseQueue, getRedisConnection } from "../lib/queue";
 import { prisma } from "../lib/prisma";
 import "../workers/scrapeWorker";
+import "../workers/enrichmentWorker";
 import "../workers/notificationWorker";
 import "../workers/alertMatchWorker";
 import "../workers/reparseWorker";
