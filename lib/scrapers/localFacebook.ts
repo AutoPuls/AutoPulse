@@ -18,6 +18,7 @@ interface ListingRaw {
   title: string;
   priceRaw: string;
   locationRaw: string;
+  _debugAria: string;
 }
 
 // Reuse the highly tested price parser from the previous iteration

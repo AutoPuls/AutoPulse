@@ -138,6 +138,7 @@ export function ListingDetailModal({
     listing.condition, 
     listing.listingUrl, 
     listing.rawDescription, 
+    listing.description, 
     listing.description?.length, 
     isRefreshing
   ]);
