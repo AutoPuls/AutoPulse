@@ -49,6 +49,7 @@ function logStartup(): void {
 }
 
 cron.schedule("0 */4 * * *", async () => {
+  if (process.env.SCRAPE_OFF === "true") return;
   try {
     await getScrapeQueue().add("scrapeAll", {}, { priority: 1 });
     console.log("[workers] Cron: 4-hour sweep queued");
@@ -151,8 +152,12 @@ async function triggerInitialJobs(): Promise<void> {
   
   console.log("[workers] Triggering initial startup jobs...");
   try {
-    await getScrapeQueue().add("scrapeAll", {}, { priority: 1 });
-    console.log("[workers] Initial scrape job queued");
+    if (process.env.SCRAPE_OFF !== "true") {
+      await getScrapeQueue().add("scrapeAll", {}, { priority: 1 });
+      console.log("[workers] Initial scrape job queued");
+    } else {
+      console.log("[workers] 🔕 Server-side scraping is DISABLED via SCRAPE_OFF=true");
+    }
     
     await getNotificationsQueue().add("checkAlerts", {});
     console.log("[workers] Initial checkAlerts job queued");
