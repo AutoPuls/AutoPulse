@@ -329,24 +329,37 @@ export async function enrichListingLocally(listingId: string) {
     const page = await context.newPage();
 
     try {
-        await page.goto(listing.listingUrl, { waitUntil: 'domcontentloaded', timeout: 45000 });
+        await page.goto(listing.listingUrl, { waitUntil: 'networkidle', timeout: 60000 });
         
-        // Smart Wait: Wait for the side panel containing details to appear
+        // 1. Proactively dismiss login modals and popups
         try {
-            await page.waitForSelector('div[role="main"] + div, .x1gslojk', { timeout: 10000 });
-        } catch (e) {
-            console.log(`[AutoPulse-v8] ⏳ Panel delay on ${listingId}. Proceeding with early capture.`);
-        }
-
-        await page.keyboard.press('Escape');
-        await page.waitForTimeout(500); 
+            await page.keyboard.press('Escape');
+            await page.waitForTimeout(500);
+            
+            // Look for 'Close' (X) buttons on modals
+            const closeButtons = [
+                'div[aria-label="Fermer"]',
+                'div[aria-label="Close"]',
+                'div[role="button"]:has-text("Close")',
+                'div.x92483t[role="button"]' // Common FB modal close class
+            ];
+            for (const selector of closeButtons) {
+                const btn = page.locator(selector);
+                if (await btn.count() > 0) {
+                    await btn.first().click();
+                    console.log(`[AutoPulse-v8] 🛡️  Dismissed login modal via ${selector}`);
+                    await page.waitForTimeout(500);
+                }
+            }
+        } catch (e) {}
 
         // 2. Expand Description ("Voir plus" / "See more")
         try {
-            const seeMore = page.locator('div[role="button"]:has-text("Voir plus"), div[role="button"]:has-text("See more")');
+            const seeMore = page.locator('div[role="button"]:has-text("Voir plus"), div[role="button"]:has-text("See more"), div:has-text("... Voir plus")');
             if (await seeMore.count() > 0) {
                 await seeMore.first().click();
-                await page.waitForTimeout(300); // Fast expansion
+                await page.waitForTimeout(1000); // Wait for text to actually appear
+                console.log(`[AutoPulse-v8] 📂 Expanded "See more" description.`);
             }
         } catch (e) {}
 
