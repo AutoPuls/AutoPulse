@@ -1,7 +1,7 @@
 import "../lib/envBootstrap";
 import { prisma } from "../lib/prisma";
 import { MARKETPLACE_CITIES } from "../lib/cities";
-import { scrapeLocalMarketplace, enrichListingLocally } from "../lib/scrapers/localFacebook";
+import { scrapeLocalMarketplace, enrichListingLocally, enrichListingsBulkLocally } from "../lib/scrapers/localFacebook";
 
 /**
  * AGENCY SWEEP v1.0
@@ -80,13 +80,11 @@ async function runAgencySweep() {
             take: 50
         });
 
-        for (const listing of recentListings) {
-            // Only enrich if description is basic or mileage is missing
-            if (!listing.description || listing.description.includes('captured') || listing.mileage === null) {
-                const enriched = await enrichListingLocally(listing.externalId);
-                if (enriched) totalEnriched++;
-                // Jitter between individual items
-                await new Promise(r => setTimeout(r, 2000 + Math.random() * 1000));
+        if (recentListings.length > 0) {
+            const ids = recentListings.filter(l => !l.description || l.description.includes('captured') || l.mileage === null).map(l => l.externalId);
+            if (ids.length > 0) {
+                const bulkSuccess = await enrichListingsBulkLocally(ids, 3); // using 3 tabs concurrently to be safe
+                totalEnriched += bulkSuccess;
             }
         }
       } else if (skipEnrich) {

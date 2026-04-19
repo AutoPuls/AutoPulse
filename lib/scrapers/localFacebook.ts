@@ -528,3 +528,169 @@ export async function enrichListingLocally(listingId: string) {
         await browser.close();
     }
 }
+
+/**
+ * Hyper Sync ⚡: Processes multiple listings concurrently while blocking standard web assets (CSS/Images)
+ * to achieve up to 10x extraction speed.
+ */
+export async function enrichListingsBulkLocally(listingIds: string[], concurrency: number = 5) {
+    if (listingIds.length === 0) return 0;
+    console.log(`[AutoPulse-v8] ⚡ HYPER SYNC: Enriching ${listingIds.length} listings with concurrency ${concurrency}...`);
+    
+    let totalSuccess = 0;
+    const proxyUrl = process.env.FB_PROXY;
+    const cookieString = process.env.FB_COOKIES;
+    
+    // Hyper-optimized Chromium parameters to prevent lag
+    const launchOptions: any = { 
+        args: [
+            '--disable-blink-features=AutomationControlled', 
+            '--no-sandbox',
+            '--disable-notifications',
+            '--disable-extensions',
+            '--disable-gpu',
+            '--blink-settings=imagesEnabled=false'
+        ],
+        headless: true 
+    };
+    if (proxyUrl) launchOptions.proxy = { server: proxyUrl };
+
+    const browser = await chromium.launch(launchOptions);
+    const context = await browser.newContext({
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        viewport: { width: 1280, height: 800 }
+    });
+
+    if (cookieString) {
+        try {
+            let cookies = cookieString.startsWith('[') ? JSON.parse(cookieString) : cookieString.split(';').map(p => {
+                const [name, value] = p.trim().split('=');
+                return { name, value, domain: '.facebook.com', path: '/' };
+            });
+            await context.addCookies(cookies);
+            console.log(`[AutoPulse-v8] 🛡️ Session Injected. Bypassing data wall...`);
+        } catch (e) {}
+    }
+
+    // Process chunk by chunk based on concurrency
+    for (let i = 0; i < listingIds.length; i += concurrency) {
+        const chunk = listingIds.slice(i, i + concurrency);
+        
+        await Promise.all(chunk.map(async (listingId) => {
+            const page = await context.newPage();
+            
+            // ⚡ HYPER OPTIMIZATION: Abort all images, media, CSS, and fonts
+            await page.route('**/*.{png,jpg,jpeg,webp,gif,css,svg,woff,woff2,mp4}', route => route.abort());
+
+            try {
+                const listing = await prisma.listing.findUnique({ where: { externalId: listingId } });
+                if (!listing) return;
+
+                await page.goto(listing.listingUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+                
+                // Dismiss modals
+                try {
+                    const closeBtn = page.locator('div[aria-label="Fermer"], div[aria-label="Close"], .x92483t[role="button"]');
+                    if (await closeBtn.count() > 0) await closeBtn.first().click({ timeout: 1000 });
+                } catch (e) {}
+
+                // Expand "See more"
+                try {
+                    const seeMore = page.locator('div[role="button"]:has-text("Voir plus"), div[role="button"]:has-text("See more"), div:has-text("... Voir plus")');
+                    if (await seeMore.count() > 0) await seeMore.first().click({ timeout: 1000 });
+                } catch (e) {}
+                
+                await page.waitForTimeout(500);
+
+                const details = await page.evaluate(() => {
+                    const spans = Array.from(document.querySelectorAll('span'));
+                    
+                    let descriptionText = "";
+                    const titleLower = document.title.toLowerCase();
+                    const allAutoBlocks = Array.from(document.querySelectorAll('[dir="auto"]'))
+                        .map(el => (el as HTMLElement).innerText.trim()).filter(t => t.length > 30); 
+
+                    const uniqueBlocks = allAutoBlocks.filter(t => {
+                        const low = t.toLowerCase();
+                        const isPrice = /[\$£€]/.test(t) && t.length < 20;
+                        const isLoginPrompt = low.includes('connectez-vous') || low.includes('log in');
+                        return low.length > 50 && !titleLower.includes(low.substring(0, 20)) && !isPrice && !isLoginPrompt;
+                    });
+                    descriptionText = uniqueBlocks.sort((a,b) => b.length - a.length)[0] || allAutoBlocks.sort((a,b) => b.length - a.length)[0] || "";
+                    
+                    const timeSpan = spans.find(s => s.innerText.includes('Publié') || s.innerText.includes('Listed') || s.innerText.includes('il y a') || s.innerText.includes('ago'));
+                    const listItems = Array.from(document.querySelectorAll('[role="listitem"], .x1n2onr6 span[dir="auto"], .x193iq5w span, div:has(> span[dir="auto"])')).map(el => (el as HTMLElement).innerText).filter(t => t && t.length > 3 && t.length < 50);
+                    
+                    const h2s = spans.filter(s => s.innerText.includes('About this vehicle') || s.innerText.includes('À propos de'));
+                    const aboutVehicleText = (h2s.length > 0 && h2s[0].parentElement?.parentElement) ? (h2s[0].parentElement.parentElement as HTMLElement).innerText : "";
+
+                    return {
+                        description: descriptionText || null,
+                        timeRaw: timeSpan?.innerText || null,
+                        listItems: Array.from(new Set([...listItems])),
+                        aboutVehicleText: aboutVehicleText
+                    };
+                });
+
+                const parseRelativeTime = (raw: string | null): Date | null => {
+                    if (!raw) return null;
+                    const now = new Date();
+                    const match = raw.toLowerCase().match(/(\d+)\s*(hour|min|day|week|heures?|jours?|semaines?)/i);
+                    if (!match) return null;
+                    const num = parseInt(match[1], 10), unit = match[2];
+                    if (unit.includes('hour') || unit.includes('heure')) now.setHours(now.getHours() - num);
+                    else if (unit.includes('min')) now.setMinutes(now.getMinutes() - num);
+                    else if (unit.includes('day') || unit.includes('jour')) now.setDate(now.getDate() - num);
+                    else if (unit.includes('week') || unit.includes('semaine')) now.setDate(now.getDate() - (num * 7));
+                    return now;
+                };
+
+                const finalDesc = details.description || listing.description || "";
+                const combinedText = `${listing.rawTitle} ${details.aboutVehicleText} ${finalDesc} ${details.listItems.join(" ")}`;
+                const parsed = parseListingText(listing.rawTitle || "", combinedText);
+                const postedAt = parseRelativeTime(details.timeRaw);
+                
+                const mileageItem = details.listItems.find(t => t.toLowerCase().includes('miles') || t.toLowerCase().includes('km') || t.toLowerCase().includes('kilométrage'));
+                let extraMileage = null;
+                if (!parsed.mileage && !mileageItem) {
+                    const m = finalDesc.match(/(\d{1,3}k?)\s*miles/i) || finalDesc.match(/(\d{1,3}k)\b/i);
+                    if (m) {
+                        const val = m[1].toLowerCase();
+                        extraMileage = val.includes('k') ? parseInt(val.replace('k', ''), 10) * 1000 : parseInt(val, 10);
+                    }
+                }
+                const finalMileage = parsed.mileage || (mileageItem ? parseInt(mileageItem.replace(/\D/g, ''), 10) : extraMileage) || listing.mileage;
+
+                await prisma.listing.update({
+                    where: { externalId: listingId },
+                    data: {
+                        description: finalDesc,
+                        rawDescription: finalDesc,
+                        mileage: finalMileage,
+                        transmission: parsed.transmission || listing.transmission,
+                        fuelType: parsed.fuelType || listing.fuelType,
+                        driveType: parsed.driveType || listing.driveType,
+                        titleStatus: parsed.titleStatus || listing.titleStatus,
+                        condition: parsed.condition || listing.condition,
+                        postedAt: postedAt || listing.postedAt,
+                        features: parsed.features,
+                        updatedAt: new Date(),
+                    }
+                });
+                console.log(`[AutoPulse-v8] ✨ HYPER SYNC OK: ${listingId} | ${details.timeRaw || 'Unk'}`);
+                totalSuccess++;
+
+            } catch (err) {
+                console.warn(`[AutoPulse-v8] ⚠️ Bulk Extract failed for ${listingId}: Timeout or Closed.`);
+            } finally {
+                await page.close();
+            }
+        }));
+
+        // Jitter between chunks (avoid FB ban)
+        await new Promise(r => setTimeout(r, 1000 + Math.random() * 1500));
+    }
+
+    await browser.close();
+    return totalSuccess;
+}
