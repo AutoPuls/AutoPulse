@@ -211,7 +211,7 @@ export function parseListingText(title: string, description: string = ""): Parse
   let driveType: string | null = null;
   if (/\b(4x4|4wd|4x2|awd|fwd|rwd|all.wheel.drive|4.wheel.drive|four.wheel.drive)\b/i.test(fullText)) {
       const dt = fullText.match(/\b(4x4|4wd|4x2|awd|fwd|rwd)\b/i)?.[0].toUpperCase();
-      driveType = dt === '4X4' ? '4WD' : dt;
+      driveType = (dt === '4X4' ? '4WD' : (dt ?? null));
   }
 
   // 8. ENGINE
@@ -228,7 +228,8 @@ export function parseListingText(title: string, description: string = ""): Parse
   // 10. BODY STYLE
   let bodyStyle: string | null = null;
   if (/\b(sedan|cupe|coupe|suv|truck|pickup|van|minivan|hatchback|convertible|wagon)\b/i.test(fullText)) {
-      bodyStyle = fullText.match(/\b(sedan|coupe|suv|truck|van|hatchback|convertible|wagon)\b/i)?.[0].toLowerCase() || null;
+      const bs = fullText.match(/\b(sedan|coupe|suv|truck|van|hatchback|convertible|wagon)\b/i)?.[0].toLowerCase();
+      bodyStyle = bs ?? null;
   }
 
   // 11. COLOR
