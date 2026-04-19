@@ -396,10 +396,18 @@ export async function enrichListingLocally(listingId: string) {
             // Pick the longest block that isn't the title or location meta-data
             const uniqueBlocks = allAutoBlocks.filter(t => {
                 const low = t.toLowerCase();
+                const isPrice = /[\$£€]/.test(t) && t.length < 20;
+                const isLoginPrompt = low.includes('connectez-vous') || 
+                                     low.includes('inscrivez-vous') || 
+                                     low.includes('log in') || 
+                                     low.includes('sign up');
+                
                 return low.length > 50 && 
                        !titleLower.includes(low.substring(0, 20)) && 
                        !low.includes('publié il y a') && 
-                       !low.includes('listed in');
+                       !low.includes('listed in') &&
+                       !isPrice &&
+                       !isLoginPrompt;
             });
 
             descriptionText = uniqueBlocks.sort((a,b) => b.length - a.length)[0] || allAutoBlocks.sort((a,b) => b.length - a.length)[0] || "";
