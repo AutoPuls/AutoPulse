@@ -22,7 +22,9 @@ import {
   Activity,
   Share2,
   History,
-  TrendingUp
+  TrendingUp,
+  FileText,
+  AlertTriangle
 } from "lucide-react";
 import { 
   Dialog, 
@@ -152,12 +154,16 @@ export function ListingDetailModal({
 
   const specs = [
     { label: "Condition", value: listing.condition, icon: ShieldCheck },
+    { label: "Title", value: listing.titleStatus || "Unknown", icon: FileText },
     { label: "Transmission", value: listing.transmission, icon: Settings },
-    { label: "Engine", value: listing.engine, icon: Zap },
     { label: "Drive Type", value: listing.driveType, icon: Car },
     { label: "Fuel", value: listing.fuelType, icon: Fuel },
+    { label: "Engine", value: listing.engine, icon: Zap },
+    { label: "Body Style", value: listing.bodyStyle, icon: Car },
     { label: "Trim", value: listing.trim, icon: CheckCircle2 },
     { label: "Color", value: listing.color, icon: Palette },
+    { label: "Owners", value: listing.owners ? `${listing.owners} owner${listing.owners > 1 ? 's' : ''}` : null, icon: User },
+    { label: "Accidents", value: listing.accidents === false ? "Accident Free" : listing.accidents === true ? "Reported" : null, icon: AlertTriangle },
   ].filter(s => s.value);
 
   return (
@@ -299,6 +305,22 @@ export function ListingDetailModal({
                   ))}
                 </div>
               </section>
+
+              {/* FEATURE TAGS */}
+              {listing.features && listing.features.length > 0 && (
+                <section>
+                  <div className="flex items-center gap-2 mb-4 text-foreground/40">
+                     <h3 className="text-[11px] font-black uppercase tracking-[0.3em]">Premium Features</h3>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {listing.features.map((feat: string, idx: number) => (
+                      <Badge key={idx} variant="outline" className="h-8 rounded-lg border-cyber-blue/30 bg-cyber-blue/10 px-3 text-[10px] font-black text-cyber-blue uppercase tracking-widest">
+                        {feat}
+                      </Badge>
+                    ))}
+                  </div>
+                </section>
+              )}
 
               {/* INTELLIGENCE FEED (DESCRIPTION) */}
               <section className="space-y-4">
