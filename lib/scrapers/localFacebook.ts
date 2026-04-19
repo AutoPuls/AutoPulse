@@ -358,7 +358,7 @@ export async function enrichListingLocally(listingId: string) {
             const seeMore = page.locator('div[role="button"]:has-text("Voir plus"), div[role="button"]:has-text("See more"), div:has-text("... Voir plus")');
             if (await seeMore.count() > 0) {
                 await seeMore.first().click();
-                await page.waitForTimeout(1000); // Wait for text to actually appear
+                await page.waitForTimeout(1500); // Wait for text to actually appear (Facebook React hydration)
                 console.log(`[AutoPulse-v8] 📂 Expanded "See more" description.`);
             }
         } catch (e) {}
@@ -368,30 +368,25 @@ export async function enrichListingLocally(listingId: string) {
             const spans = Array.from(document.querySelectorAll('span'));
             
             // 1. Description extraction (Maximum Robustness)
-            // Strategy: Find the right-side details panel and extract the primary text block (dir="auto")
+            // Strategy: Search the entire page for user-written content blocks (dir="auto")
+            // and pick the one that looks most like a description (long, not the title).
             let descriptionText = "";
-            const sidePanel = document.querySelector('div[role="main"] + div, div.x1gslojk, div[style*="width: 360px"]');
+            const titleLower = document.title.toLowerCase();
             
-            if (sidePanel) {
-                // Find all text blocks with dir="auto"
-                const textBlocks = Array.from(sidePanel.querySelectorAll('div[dir="auto"], span[dir="auto"]'))
-                    .map(el => (el as HTMLElement).innerText.trim())
-                    .filter(t => t.length > 30); // Filter out short fragments (price, name, etc)
+            const allAutoBlocks = Array.from(document.querySelectorAll('[dir="auto"]'))
+                .map(el => (el as HTMLElement).innerText.trim())
+                .filter(t => t.length > 30); 
 
-                // The description is typically the longest text block in the panel
-                // We just need to make sure we don't pick the 'Johnstown, OH' location text
-                const sortedBlocks = textBlocks.sort((a, b) => b.length - a.length);
-                descriptionText = sortedBlocks.find(t => t.length > 50 && !t.includes(',') ) || sortedBlocks[0] || "";
-            }
+            // Pick the longest block that isn't the title or location meta-data
+            const uniqueBlocks = allAutoBlocks.filter(t => {
+                const low = t.toLowerCase();
+                return low.length > 50 && 
+                       !titleLower.includes(low.substring(0, 20)) && 
+                       !low.includes('publié il y a') && 
+                       !low.includes('listed in');
+            });
 
-            // Fallback for different languages / layouts
-            if (!descriptionText || descriptionText.length < 10) {
-                const spans = Array.from(document.querySelectorAll('span'));
-                const descHeader = spans.find(s => s.innerText.includes('Description') || s.innerText.includes('Seller'));
-                if (descHeader && descHeader.parentElement?.nextElementSibling) {
-                    descriptionText = (descHeader.parentElement.nextElementSibling as HTMLElement).innerText;
-                }
-            }
+            descriptionText = uniqueBlocks.sort((a,b) => b.length - a.length)[0] || allAutoBlocks.sort((a,b) => b.length - a.length)[0] || "";
             
             // 2. Timing extraction (e.g., "Publié il y a 4 heures" / "Listed 2 hours ago")
             const timeSpan = spans.find(s => 
