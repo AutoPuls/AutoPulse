@@ -74,10 +74,17 @@ export async function scrapeLocalMarketplace(
 ) {
   console.log(`[AutoPulse-v8] 🚀 Launching Engine for "${location}"...`);
   
-  const browser = await chromium.launch({ 
+  const proxyUrl = process.env.FB_PROXY;
+  const launchOptions: any = { 
     args: ['--disable-blink-features=AutomationControlled', '--no-sandbox'],
     headless: true 
-  });
+  };
+  if (proxyUrl) {
+      launchOptions.proxy = { server: proxyUrl };
+      console.log(`[AutoPulse-v8] 🌐 Using proxy: ${proxyUrl.split('@').pop()}`);
+  }
+
+  const browser = await chromium.launch(launchOptions);
   
   const context = await browser.newContext({
     userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -113,7 +120,18 @@ export async function scrapeLocalMarketplace(
     });
 
     console.log(`[AutoPulse-v8] 🔍 Protocol: STANDARD | Target: ${searchUrl}`);
-    const response = await page.goto(searchUrl, { waitUntil: 'networkidle', timeout: 60000 });
+    
+    // v8.5: Stealth Landing (Go to Google first to establish a clean Referer)
+    try {
+        await page.goto('https://www.google.com/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+        await page.waitForTimeout(1000 + Math.random() * 2000);
+    } catch (e) {}
+
+    const response = await page.goto(searchUrl, { 
+        waitUntil: 'networkidle', 
+        timeout: 60000,
+        referer: 'https://www.google.com/'
+    });
     
     // v8.4: Dismiss potential Login/Cookie modals
     await page.waitForTimeout(3000); 
@@ -140,8 +158,16 @@ export async function scrapeLocalMarketplace(
 
     // Final check for dead login wall
     if (page.url().includes('login') && !page.url().includes('marketplace')) {
-        console.warn(`[AutoPulse-v8] ❌ Hard login wall hit even on WWW. Attempting one last redirect...`);
-        await page.goto(`https://www.facebook.com/marketplace/`, { waitUntil: 'domcontentloaded' });
+        console.warn(`[AutoPulse-v8] ❌ Hard login wall hit even with referrer. Trying Search-URL strategy...`);
+        const id = FORCED_LOCATION_IDS[location] || '106149489415840';
+        const fallbackUrl = `https://www.facebook.com/marketplace/search/?query=vehicles&location_id=${id}&exact=false`;
+        await page.goto(fallbackUrl, { waitUntil: 'networkidle', referer: 'https://www.google.com/' });
+        
+        // Final fallback to base marketplace
+        if (page.url().includes('login')) {
+            console.warn(`[AutoPulse-v8] ❌ Still at login. One last attempt at base Marketplace...`);
+            await page.goto(`https://www.facebook.com/marketplace/`, { waitUntil: 'domcontentloaded' });
+        }
     }
 
     // Scroll to load dynamic content
@@ -258,10 +284,14 @@ export async function enrichListingLocally(listingId: string) {
     });
     if (!listing) return null;
 
-    const browser = await chromium.launch({ 
+    const proxyUrl = process.env.FB_PROXY;
+    const launchOptions: any = { 
         args: ['--disable-blink-features=AutomationControlled', '--no-sandbox'],
         headless: true 
-    });
+    };
+    if (proxyUrl) launchOptions.proxy = { server: proxyUrl };
+
+    const browser = await chromium.launch(launchOptions);
     const context = await browser.newContext({
         userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         viewport: { width: 1280, height: 800 }
