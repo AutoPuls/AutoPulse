@@ -1,7 +1,7 @@
 import "../lib/envBootstrap";
 import { prisma } from "../lib/prisma";
 import { MARKETPLACE_CITIES } from "../lib/cities";
-import { scrapeLocalMarketplace } from "../lib/scrapers/localFacebook";
+import { scrapeLocalMarketplace, enrichListingLocally } from "../lib/scrapers/localFacebook";
 
 /**
  * AGENCY SWEEP v1.0
