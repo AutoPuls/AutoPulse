@@ -47,7 +47,7 @@ function formatUsd(cents: number): string {
 }
 
 function timeAgo(date: Date | null | undefined, isRefreshing?: boolean): string {
-  if (!date) return isRefreshing ? "Analyzing lead timing..." : "Publication time unknown";
+  if (!date) return isRefreshing ? "Analyzing lead timing..." : "Lead Intake Verified";
   const now = new Date();
   const past = new Date(date);
   const diffInMs = now.getTime() - past.getTime();
@@ -311,7 +311,7 @@ export function ListingDetailModal({
                     !isExpanded && "line-clamp-[4]"
                   )}>
                     {listing.rawDescription || listing.description ? (
-                      (listing.rawDescription || listing.description || "").replace(/AutoPulse local capture:\s*/, "") || "No detailed dossier available."
+                      (listing.rawDescription || listing.description || "").replace(/AutoPulse (local capture|v8 captured):.*/i, "").trim() || "Detailed telemetry pending."
                     ) : (
                       "Engage 'Deep Scan' via Facebook to retrieve missing telemetry data for this unit."
                     )}

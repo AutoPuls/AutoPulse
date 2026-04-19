@@ -284,17 +284,48 @@ export async function enrichListingLocally(listingId: string) {
     if (!listing) return null;
 
     const proxyUrl = process.env.FB_PROXY;
+    const cookieString = process.env.FB_COOKIES; // New: Bypass Data Wall
+    
     const launchOptions: any = { 
-        args: ['--disable-blink-features=AutomationControlled', '--no-sandbox'],
+        args: [
+            '--disable-blink-features=AutomationControlled', 
+            '--no-sandbox',
+            '--disable-notifications'
+        ],
         headless: true 
     };
     if (proxyUrl) launchOptions.proxy = { server: proxyUrl };
 
     const browser = await chromium.launch(launchOptions);
+    
+    // Inject session if available
+    let cookies: any[] = [];
+    if (cookieString) {
+        try {
+            // Support both JSON array and key=value strings
+            if (cookieString.startsWith('[')) {
+                cookies = JSON.parse(cookieString);
+            } else {
+                cookies = cookieString.split(';').map(pair => {
+                    const [name, value] = pair.trim().split('=');
+                    return { name, value, domain: '.facebook.com', path: '/' };
+                });
+            }
+        } catch (e) {
+            console.error("[AutoPulse] ⚠️ Invalid FB_COOKIES format. Continuing as guest.");
+        }
+    }
+
     const context = await browser.newContext({
         userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         viewport: { width: 1280, height: 800 }
     });
+
+    if (cookies.length > 0) {
+        await context.addCookies(cookies);
+        console.log(`[AutoPulse-v8] 🛡️  Session Injected (${cookies.length} cookies). Bypassing data wall...`);
+    }
+
     const page = await context.newPage();
 
     try {
@@ -393,7 +424,17 @@ export async function enrichListingLocally(listingId: string) {
         const mileageItem = details.listItems.find(t => t.toLowerCase().includes('miles') || t.toLowerCase().includes('km') || t.toLowerCase().includes('kilométrage'));
         const transmissionItem = details.listItems.find(t => t.toLowerCase().includes('transmission') || t.toLowerCase().includes('boîte'));
         
-        const finalMileage = parsed.mileage || (mileageItem ? parseInt(mileageItem.replace(/\D/g, ''), 10) : listing.mileage);
+        // Advanced: Search for numbers followed by 'k' or 'miles' in the full description if missing
+        let extraMileage = null;
+        if (!parsed.mileage && !mileageItem) {
+            const m = finalDesc.match(/(\d{1,3}k?)\s*miles/i) || finalDesc.match(/(\d{1,3}k)\b/i);
+            if (m) {
+                const val = m[1].toLowerCase();
+                extraMileage = val.includes('k') ? parseInt(val.replace('k', ''), 10) * 1000 : parseInt(val, 10);
+            }
+        }
+
+        const finalMileage = parsed.mileage || (mileageItem ? parseInt(mileageItem.replace(/\D/g, ''), 10) : extraMileage) || listing.mileage;
         const finalTransmission = parsed.transmission || (transmissionItem?.toLowerCase().includes('auto') ? 'automatic' : transmissionItem?.toLowerCase().includes('man') ? 'manual' : listing.transmission);
 
         await prisma.listing.update({
