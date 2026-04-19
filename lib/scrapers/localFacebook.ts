@@ -206,7 +206,8 @@ export async function scrapeLocalMarketplace(
             // v8.7: Flawless Price & Metadata Extraction
             // We first completely extract the price using regex directly from ariaLabel.
             // This prevents commas inside $3,000 from breaking parsing.
-            const priceRegex = /(?:[\$£€]\s*[\d,.\s]+|[\d,.\s]+\s*[\$£€]|Gratuit|Free)/i;
+            // Stricter price extraction to ignore model numbers (e.g., Lexus is 250 $2000 -> not 250$)
+            const priceRegex = /(?:[\$£€]\s*[\d,.]+(?:\s\d{3})*|(?<=\s)[\d,.]+(?:\s\d{3})*\s*[\$£€](?=\s|$)|Gratuit|Free)/i;
             const priceMatch = ariaLabel.match(priceRegex);
             let priceRaw = "0";
             let title = "Unknown Vehicle";
