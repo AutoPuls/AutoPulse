@@ -49,6 +49,7 @@ async function runAgencySweep() {
 
   let totalScraped = 0;
   let totalUpserted = 0;
+  let totalEnriched = 0;
 
   for (const city of sortedCities) {
     try {
@@ -64,9 +65,32 @@ async function runAgencySweep() {
       totalUpserted += result.upserted;
 
       console.log(`[${city.slug}] Done! Scraped: ${result.scraped}, Upserted: ${result.upserted}`);
+
+      // NEW: Trigger deep enrichment for the most recent findings (limit to top 50)
+      if (result.upserted > 0) {
+        console.log(`[${city.slug}] 🛠️  Starting Deep Enrichment for latest listings...`);
+        const recentListings = await prisma.listing.findMany({
+            where: { 
+                city: city.label.split(',')[0],
+                source: "facebook"
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 50
+        });
+
+        for (const listing of recentListings) {
+            // Only enrich if description is basic or mileage is missing
+            if (!listing.description || listing.description.includes('captured') || listing.mileage === null) {
+                const enriched = await enrichListingLocally(listing.externalId);
+                if (enriched) totalEnriched++;
+                // Jitter between individual items
+                await new Promise(r => setTimeout(r, 3000 + Math.random() * 2000));
+            }
+        }
+      }
+
     } catch (err) {
       console.error(`[sweep] ❌ Failed to scrape ${city.slug}:`, err instanceof Error ? err.message : err);
-      // Continue to next city anyway
     }
   }
 
@@ -74,6 +98,7 @@ async function runAgencySweep() {
   console.log("✅  AGENCY SWEEP COMPLETE");
   console.log(`📊  Total Listings Scraped: ${totalScraped}`);
   console.log(`📊  Total Synced to Cloud: ${totalUpserted}`);
+  console.log(`📊  Total Deep-Enriched (Full Info): ${totalEnriched}`);
   console.log("====================================================\n");
 }
 

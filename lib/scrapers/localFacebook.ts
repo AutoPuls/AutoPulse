@@ -278,7 +278,6 @@ export async function scrapeLocalMarketplace(
 export async function enrichListingLocally(listingId: string) {
     console.log(`[AutoPulse-v8] 📈 Deep Enrichment for ${listingId}...`);
     
-    // 1. Fetch listing details to get the URL
     const listing = await prisma.listing.findUnique({
         where: { externalId: listingId }
     });
@@ -301,48 +300,89 @@ export async function enrichListingLocally(listingId: string) {
     try {
         await page.goto(listing.listingUrl, { waitUntil: 'networkidle', timeout: 60000 });
         
-        // Dismiss modals
-        await page.waitForTimeout(2000);
+        // 1. Dismiss initial modals & wait for load
+        await page.waitForTimeout(3000);
         await page.keyboard.press('Escape');
 
+        // 2. Expand Description ("Voir plus" / "See more")
+        try {
+            const seeMore = page.locator('div[role="button"]:has-text("Voir plus"), div[role="button"]:has-text("See more")');
+            if (await seeMore.count() > 0) {
+                await seeMore.first().click();
+                await page.waitForTimeout(1000);
+                console.log(`[AutoPulse-v8] 📂 Expanded "See more" description.`);
+            }
+        } catch (e) {}
+
         const details = await page.evaluate(() => {
-            const descriptionEl = Array.from(document.querySelectorAll('span')).find(s => s.innerText?.length > 100 && !s.innerText.includes('marketplace'));
-            const imageEls = Array.from(document.querySelectorAll('img')).filter(img => img.src?.includes('scontent') && img.width > 200).map(img => img.src);
-            
-            // Extract specific list items (Mileage, etc.)
+            // Updated selectors based on Chicago production layout
             const spans = Array.from(document.querySelectorAll('span'));
-            const mileageSpan = spans.find(s => s.innerText.toLowerCase().includes('miles') || s.innerText.toLowerCase().includes('km'));
+            
+            // Description extraction (look for the large block)
+            const descriptionEl = spans.find(s => s.innerText?.length > 100 && !s.innerText.includes('marketplace') && !s.innerText.includes('Listed'));
+            
+            // Image extraction (high res)
+            const imageEls = Array.from(document.querySelectorAll('img')).filter(img => img.src?.includes('scontent') && img.width > 300).map(img => img.src);
+            
+            // Timing extraction (e.g., "Listed 2 hours ago" / "Publié il y a 19 heures")
+            const timeSpan = spans.find(s => s.innerText.toLowerCase().includes('listed') || s.innerText.toLowerCase().includes('publié') || s.innerText.toLowerCase().includes('il y a'));
+            
+            // Specific labels extraction (Mileage, etc. - often in role="listitem")
+            const listItems = Array.from(document.querySelectorAll('[role="listitem"] span')).map(s => s.innerText);
+            const mileageItem = listItems.find(txt => txt.toLowerCase().includes('miles') || txt.toLowerCase().includes('km'));
             
             return {
                 description: descriptionEl?.innerText || null,
                 images: Array.from(new Set(imageEls)).slice(0, 10),
-                mileageRaw: mileageSpan?.innerText || null
+                mileageRaw: mileageItem || null,
+                timeRaw: timeSpan?.innerText || null
             };
         });
 
-        if (details.description) {
-            const parsed = parseListingText(listing.rawTitle || "", details.description);
+        // Helper: Convert relative time ("2 hours ago") to Date
+        const parseRelativeTime = (raw: string | null): Date | null => {
+            if (!raw) return null;
+            const now = new Date();
+            const low = raw.toLowerCase();
+            const match = low.match(/(\d+)\s*(hour|min|day|week|heures?|jours?|semaines?)/i);
+            if (!match) return null;
             
-            await prisma.listing.update({
-                where: { externalId: listingId },
-                data: {
-                    description: details.description,
-                    rawDescription: details.description,
-                    mileage: parsed.mileage || listing.mileage,
-                    transmission: parsed.transmission || listing.transmission,
-                    fuelType: parsed.fuelType || listing.fuelType,
-                    driveType: parsed.driveType || listing.driveType,
-                    titleStatus: parsed.titleStatus || listing.titleStatus,
-                    condition: parsed.condition || listing.condition,
-                    imageUrl: details.images[0] || listing.imageUrl,
-                    updatedAt: new Date(),
-                }
-            });
-            console.log(`[AutoPulse-v8] ✨ Enrichment successful for ${listingId}`);
-            return true;
-        }
+            const num = parseInt(match[1], 10);
+            const unit = match[2];
+            
+            if (unit.includes('hour') || unit.includes('heure')) now.setHours(now.getHours() - num);
+            else if (unit.includes('min')) now.setMinutes(now.getMinutes() - num);
+            else if (unit.includes('day') || unit.includes('jour')) now.setDate(now.getDate() - num);
+            else if (unit.includes('week') || unit.includes('semaine')) now.setDate(now.getDate() - (num * 7));
+            
+            return now;
+        };
 
-        return false;
+        const finalDesc = details.description || listing.description || "";
+        const parsed = parseListingText(listing.rawTitle || "", finalDesc);
+        const postedAt = parseRelativeTime(details.timeRaw);
+        
+        // Final update to DB
+        await prisma.listing.update({
+            where: { externalId: listingId },
+            data: {
+                description: finalDesc,
+                rawDescription: finalDesc,
+                mileage: parsed.mileage || (details.mileageRaw ? parseInt(details.mileageRaw.replace(/\D/g, ''), 10) : listing.mileage),
+                transmission: parsed.transmission || listing.transmission,
+                fuelType: parsed.fuelType || listing.fuelType,
+                driveType: parsed.driveType || listing.driveType,
+                titleStatus: parsed.titleStatus || listing.titleStatus,
+                condition: parsed.condition || listing.condition,
+                imageUrl: details.images[0] || listing.imageUrl,
+                postedAt: postedAt || listing.postedAt,
+                updatedAt: new Date(),
+            }
+        });
+
+        console.log(`[AutoPulse-v8] ✨ Deep Sync successful for ${listingId} (${parsed.mileage || 'No'} miles)`);
+        return true;
+
     } catch (err) {
         console.error(`[AutoPulse-v8] ❌ Enrichment failed for ${listingId}:`, err);
         return false;
