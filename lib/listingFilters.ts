@@ -170,7 +170,14 @@ export function buildStructuredWhere(
     where.trim = { contains: p.trim, mode: "insensitive" };
   }
   if (p.bodyStyle) {
-    where.bodyStyle = { contains: p.bodyStyle, mode: "insensitive" };
+    const b = p.bodyStyle;
+    where.AND = [...(where.AND as any[] || []), {
+      OR: [
+        { bodyStyle: { contains: b, mode: "insensitive" } },
+        { rawTitle: { contains: b, mode: "insensitive" } },
+        { description: { contains: b, mode: "insensitive" } }
+      ]
+    }];
   }
   if (p.driveType) {
     where.driveType = { contains: p.driveType, mode: "insensitive" };
