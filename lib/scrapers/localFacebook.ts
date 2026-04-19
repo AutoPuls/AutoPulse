@@ -298,19 +298,18 @@ export async function enrichListingLocally(listingId: string) {
     const page = await context.newPage();
 
     try {
-        await page.goto(listing.listingUrl, { waitUntil: 'networkidle', timeout: 60000 });
+        await page.goto(listing.listingUrl, { waitUntil: 'domcontentloaded', timeout: 45000 });
         
-        // 1. Dismiss initial modals & wait for load
-        await page.waitForTimeout(3000);
+        // 1. Dismiss initial modals & wait for primary content
         await page.keyboard.press('Escape');
+        await page.waitForTimeout(1500); // Shorter wait
 
         // 2. Expand Description ("Voir plus" / "See more")
         try {
             const seeMore = page.locator('div[role="button"]:has-text("Voir plus"), div[role="button"]:has-text("See more")');
             if (await seeMore.count() > 0) {
                 await seeMore.first().click();
-                await page.waitForTimeout(1000);
-                console.log(`[AutoPulse-v8] 📂 Expanded "See more" description.`);
+                await page.waitForTimeout(300); // Fast expansion
             }
         } catch (e) {}
 
