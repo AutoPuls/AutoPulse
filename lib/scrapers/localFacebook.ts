@@ -73,8 +73,9 @@ const FORCED_LOCATION_IDS: Record<string, string> = {
 
 export async function scrapeLocalMarketplace(
   location: string,
-  filters: MarketplaceScrapeFilters = {}
+  options: { filters?: MarketplaceScrapeFilters; scrollDepth?: number } = {}
 ) {
+  const { filters = {}, scrollDepth = 20 } = options;
   console.log(`[AutoPulse-v8] 🚀 Launching Engine for "${location}"...`);
   
   const proxyRaw = process.env.FB_PROXY;
@@ -181,10 +182,10 @@ export async function scrapeLocalMarketplace(
 
     // v8.5: High-Volume Deep Scroll
     // We scroll multiple times to load the extra listings needed to populate the site fast
-    console.log(`[AutoPulse-v8] 📜 Mega Deep Scroll (20 iterations) for maximum volume...`);
-    for (let i = 0; i < 20; i++) {
+    console.log(`[AutoPulse-v8] 📜 Deep Scroll (${scrollDepth} iterations) for maximum volume...`);
+    for (let i = 0; i < scrollDepth; i++) {
         await page.evaluate(() => window.scrollBy(0, 1500));
-        await page.waitForTimeout(800); // Shorter wait for faster scroll
+        await page.waitForTimeout(800); 
     }
 
     const listings: ListingRaw[] = await page.evaluate(() => {
