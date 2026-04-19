@@ -23,14 +23,8 @@ export const alertMatchWorker = new Worker(
         return;
       }
 
-      // --- JUST LISTED FILTER ---
-      // We only notify for vehicles listed within the last 24 hours.
-      // If postedAt is null, we conservative skip to avoid 'stale' notification spam.
-      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      if (!listing.postedAt || listing.postedAt < oneDayAgo) {
-        console.log(`[alertMatchWorker] Skipping ${listingId} - Not 'Just Listed' (Age: ${listing.postedAt || 'Unknown'})`);
-        return;
-      }
+      // --- ALL LISTINGS FILTER ---
+      // We notify for ALL vehicles matched, removing the previous 24h limits.
       // --------------------------
 
       const subscriptions = await findMatchingSubscriptions(listing);
