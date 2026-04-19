@@ -14,11 +14,17 @@ async function runAgencySweep() {
   console.log("🛡️  AUTOPULSE AGENCY SWEEP: STARTING US-WIDE SYNC  🛡️");
   console.log("====================================================\n");
 
-  // 1. Get priority cities (those with active alerts)
-  const subscriptions = await prisma.subscription.findMany({
-    select: { city: true }
+  // Log target for safety
+  const dbUrl = process.env.DATABASE_URL || "";
+  const dbName = dbUrl.includes("supabase") ? "Supabase (Production)" : "Local/Generic DB";
+  console.log(`📡 Target Database: ${dbName}`);
+  console.log("----------------------------------------------------\n");
+
+  // Handle Ctrl+C gracefully on Windows
+  process.on("SIGINT", () => {
+    console.log("\n\n🛑 STOPPING... Closing browser and exiting safely.");
+    process.exit(0);
   });
-  const priorityCitySlugs = Array.from(new Set(subscriptions.map(s => s.city?.toLowerCase()).filter(Boolean)));
 
   // 2. Sort cities: Priority first, then the rest
   const sortedCities = [...MARKETPLACE_CITIES].sort((a, b) => {
