@@ -9,6 +9,7 @@
     "lint": "next lint",
     "workers": "ts-node --project tsconfig.json scripts/startWorkers.ts",
     "scrape:now": "ts-node --project tsconfig.json -e \"require('./lib/scrapers').runAllScrapers().then(console.log)\"",
+    "agency-sweep": "ts-node --project tsconfig.json scripts/agency_sweep.ts",
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
     "db:studio": "prisma studio"
