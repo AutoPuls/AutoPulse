@@ -278,24 +278,30 @@ export async function scrapeLocalMarketplace(
             }
         });
 
-        // Trigger alert matching immediately for new listings (Lightweight)
-        try {
-            const matchQueue = getAlertMatchQueue();
-            await matchQueue.add("matchListing", { listingId: item.externalId }, { 
-                removeOnComplete: true,
-                jobId: `match-fast-${item.externalId}` // Deduplicate if multiple cities find same car
-            });
-        } catch (e) {}
+        const quickParsed = parseListingText(item.title, "");
+        const isUnknown = quickParsed.make === "Unknown" || quickParsed.model === "Unknown" || !quickParsed.year;
 
-        // 🚨 DISABLED BULLMQ ENRICHMENT: We were hitting Redis OOM (Out of Memory)
-        // because the fast scraper pumps 100k listings into the waiting queue instantly. 
-        // agency_sweep.ts now handles bulk enrichment natively.
-        /* 
-        try {
-            const enrichQueue = getEnrichmentQueue();
-            await enrichQueue.add("enrichListing", { listingId: item.externalId }, { removeOnComplete: true });
-        } catch (e) {}
-        */
+        // 🛡️ SMART ENRICHMENT GATE:
+        // Instead of queueing 100k listings (which caused Redis OOM), 
+        // we only queue the important "Unknown" ones that need deep cleaning.
+        if (isUnknown) {
+            try {
+                const enrichQueue = getEnrichmentQueue();
+                await enrichQueue.add("enrichListing", { listingId: item.externalId }, { 
+                    priority: 5, // Lower priority for deep cleaning
+                    removeOnComplete: true 
+                });
+            } catch (e) {}
+        } else {
+            // Already identified! Trigger matching immediately.
+            try {
+                const matchQueue = getAlertMatchQueue();
+                await matchQueue.add("matchListing", { listingId: item.externalId }, { 
+                    removeOnComplete: true,
+                    jobId: `match-fast-${item.externalId}`
+                });
+            } catch (e) {}
+        }
         
         upserted++;
     }
@@ -406,66 +412,61 @@ export async function enrichListingLocally(listingId: string) {
         } catch (e) {}
 
         const details = await page.evaluate(() => {
-            // Helper to get text from various layouts
             const spans = Array.from(document.querySelectorAll('span'));
             
             // 1. Description extraction (Maximum Robustness)
-            // Strategy: Search the entire page for user-written content blocks (dir="auto")
-            // and pick the one that looks most like a description (long, not the title).
             let descriptionText = "";
             const titleLower = document.title.toLowerCase();
             
-            const allAutoBlocks = Array.from(document.querySelectorAll('[dir="auto"]'))
-                .map(el => (el as HTMLElement).innerText.trim())
-                .filter(t => t.length > 30); 
+            // Look for blocks with large amounts of text that aren't navigation or login prompts
+            const allTextBlocks = Array.from(document.querySelectorAll('div, span'))
+                .map(el => (el as HTMLElement).innerText?.trim() || "")
+                .filter(t => t.length > 50 && t.length < 5000);
 
-            // Pick the longest block that isn't the title or location meta-data
-            const uniqueBlocks = allAutoBlocks.filter(t => {
+            const filteredBlocks = allTextBlocks.filter(t => {
                 const low = t.toLowerCase();
-                const isPrice = /[\$£€]/.test(t) && t.length < 20;
-                const isLoginPrompt = low.includes('connectez-vous') || 
-                                     low.includes('inscrivez-vous') || 
-                                     low.includes('log in') || 
-                                     low.includes('sign up');
-                
-                return low.length > 50 && 
-                       !titleLower.includes(low.substring(0, 20)) && 
-                       !low.includes('publié il y a') && 
-                       !low.includes('listed in') &&
-                       !isPrice &&
-                       !isLoginPrompt;
+                if (low.includes('log in') || low.includes('sign up') || low.includes('privacy') || low.includes('terms')) return false;
+                if (low.includes('see more photos') || low.includes('listed in') || low.includes('seller information')) return false;
+                return true;
             });
 
-            descriptionText = uniqueBlocks.sort((a,b) => b.length - a.length)[0] || allAutoBlocks.sort((a,b) => b.length - a.length)[0] || "";
+            // Find the longest block that isn't the whole page container
+            descriptionText = filteredBlocks.sort((a,b) => b.length - a.length)[0] || "";
             
-            // 2. Timing extraction (e.g., "Publié il y a 4 heures" / "Listed 2 hours ago")
-            const timeSpan = spans.find(s => 
-                s.innerText.includes('Publié') || 
-                s.innerText.includes('Listed') || 
-                s.innerText.includes('il y a') ||
-                s.innerText.includes('ago')
-            );
+            // 2. Timing extraction
+            const timeRaw = spans.find(s => /published|listed|il y a|ago/i.test(s.innerText))?.innerText || null;
             
-            // 3. Image extraction (high res)
-            const imageEls = Array.from(document.querySelectorAll('img')).filter(img => img.src?.includes('scontent') && img.width > 300).map(img => img.src);
+            // 3. Image extraction
+            const imageEls = Array.from(document.querySelectorAll('img'))
+                .filter(img => img.src?.includes('scontent') && img.width > 200)
+                .map(img => img.src);
             
-            // 4. Structured Details (Mileage, etc.)
-            // Facebook uses different layouts for "About this vehicle". We capture all listitems AND any div that looks like a spec grid.
-            const listItems = Array.from(document.querySelectorAll('[role="listitem"], .x1n2onr6 span[dir="auto"], .x193iq5w span, div:has(> span[dir="auto"])')).map(el => (el as HTMLElement).innerText).filter(t => t && t.length > 3 && t.length < 50);
+            // 4. Structured Details (Specs Matrix)
+            // Facebook often uses spans next to each other for Key: Value
+            const specList = Array.from(document.querySelectorAll('[role="listitem"], .x193iq5w, .x1n2onr6'))
+                .map(el => (el as HTMLElement).innerText?.trim())
+                .filter(t => t && t.length > 2 && t.length < 100);
             
-            // Look specifically for the "About this vehicle" block
-            const h2s = Array.from(document.querySelectorAll('span')).filter(s => s.innerText.includes('About this vehicle') || s.innerText.includes('À propos de'));
-            let aboutVehicleText = "";
-            if (h2s.length > 0 && h2s[0].parentElement?.parentElement) {
-                aboutVehicleText = (h2s[0].parentElement.parentElement as HTMLElement).innerText;
+            // Specific search for "About this vehicle" block
+            const aboutH2 = spans.find(s => /about this vehicle|à propos de ce véhicule/i.test(s.innerText));
+            let aboutText = "";
+            if (aboutH2) {
+                let curr = aboutH2.parentElement;
+                for(let i=0; i<5 && curr; i++) {
+                    if (curr.innerText.length > aboutH2.innerText.length + 20) {
+                        aboutText = curr.innerText;
+                        break;
+                    }
+                    curr = curr.parentElement;
+                }
             }
 
             return {
                 description: descriptionText || null,
-                images: Array.from(new Set(imageEls)).slice(0, 10),
-                timeRaw: timeSpan?.innerText || null,
-                listItems: Array.from(new Set([...listItems])),
-                aboutVehicleText: aboutVehicleText
+                images: Array.from(new Set(imageEls)).slice(0, 15),
+                timeRaw,
+                listItems: Array.from(new Set(specList)),
+                aboutVehicleText: aboutText
             };
         });
 
@@ -624,28 +625,38 @@ export async function enrichListingsBulkLocally(listingIds: string[], concurrenc
                     
                     let descriptionText = "";
                     const titleLower = document.title.toLowerCase();
-                    const allAutoBlocks = Array.from(document.querySelectorAll('[dir="auto"]'))
-                        .map(el => (el as HTMLElement).innerText.trim()).filter(t => t.length > 30); 
+                    const allTextBlocks = Array.from(document.querySelectorAll('div, span'))
+                        .map(el => (el as HTMLElement).innerText?.trim() || "")
+                        .filter(t => t.length > 50 && t.length < 5000);
 
-                    const uniqueBlocks = allAutoBlocks.filter(t => {
+                    const filteredBlocks = allTextBlocks.filter(t => {
                         const low = t.toLowerCase();
-                        const isPrice = /[\$£€]/.test(t) && t.length < 20;
-                        const isLoginPrompt = low.includes('connectez-vous') || low.includes('log in');
-                        return low.length > 50 && !titleLower.includes(low.substring(0, 20)) && !isPrice && !isLoginPrompt;
+                        if (low.includes('log in') || low.includes('sign up')) return false;
+                        if (low.includes('see more photos') || low.includes('listed in')) return false;
+                        return true;
                     });
-                    descriptionText = uniqueBlocks.sort((a,b) => b.length - a.length)[0] || allAutoBlocks.sort((a,b) => b.length - a.length)[0] || "";
+                    descriptionText = filteredBlocks.sort((a,b) => b.length - a.length)[0] || "";
                     
-                    const timeSpan = spans.find(s => s.innerText.includes('Publié') || s.innerText.includes('Listed') || s.innerText.includes('il y a') || s.innerText.includes('ago'));
-                    const listItems = Array.from(document.querySelectorAll('[role="listitem"], .x1n2onr6 span[dir="auto"], .x193iq5w span, div:has(> span[dir="auto"])')).map(el => (el as HTMLElement).innerText).filter(t => t && t.length > 3 && t.length < 50);
+                    const timeRaw = spans.find(s => /published|listed|il y a|ago/i.test(s.innerText))?.innerText || null;
+                    const specList = Array.from(document.querySelectorAll('[role="listitem"], .x193iq5w, .x1n2onr6'))
+                        .map(el => (el as HTMLElement).innerText?.trim())
+                        .filter(t => t && t.length > 2 && t.length < 100);
                     
-                    const h2s = spans.filter(s => s.innerText.includes('About this vehicle') || s.innerText.includes('À propos de'));
-                    const aboutVehicleText = (h2s.length > 0 && h2s[0].parentElement?.parentElement) ? (h2s[0].parentElement.parentElement as HTMLElement).innerText : "";
+                    const aboutH2 = spans.find(s => /about this vehicle|à propos de ce véhicule/i.test(s.innerText));
+                    let aboutText = "";
+                    if (aboutH2) {
+                        let curr = aboutH2.parentElement;
+                        for(let i=0; i<3 && curr; i++) {
+                            if (curr.innerText.length > aboutH2.innerText.length + 10) { aboutText = curr.innerText; break; }
+                            curr = curr.parentElement;
+                        }
+                    }
 
                     return {
                         description: descriptionText || null,
-                        timeRaw: timeSpan?.innerText || null,
-                        listItems: Array.from(new Set([...listItems])),
-                        aboutVehicleText: aboutVehicleText
+                        timeRaw,
+                        listItems: Array.from(new Set(specList)),
+                        aboutVehicleText: aboutText
                     };
                 });
 

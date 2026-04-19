@@ -86,24 +86,27 @@ export function isJunkTitle(title: string): boolean {
 export function parseListingText(title: string, description: string = ""): ParsedListing {
   const titleText = title.toLowerCase();
   const descriptionText = (description || "").toLowerCase();
-  const fullText = (titleText + " " + descriptionText).trim();
+  const fullText = (titleText + " " + descriptionText).trim().replace(/\s+/g, " ");
   let parseScore = 100;
 
-  // 1. YEAR extraction
-  const yearMatch = fullText.match(/\b(19[5-9]\d|20[0-2]\d)\b/);
-  const year = yearMatch ? parseInt(yearMatch[1], 10) : 0;
+  // 1. YEAR extraction - Prioritize numbers that look like years (1970-2026)
+  const years = fullText.match(/\b(19[5-9]\d|20[0-2]\d)\b/g);
+  let year = 0;
+  if (years) {
+    // If multiple years are found (e.g. 2018 Camry, 2024 tires), take the one in the title or the first one
+    const titleYear = titleText.match(/\b(19[5-9]\d|20[0-2]\d)\b/);
+    year = titleYear ? parseInt(titleYear[1], 10) : parseInt(years[0], 10);
+  }
   if (year === 0) parseScore -= 20;
 
-  // 2. MAKE extraction - Check title FIRST (higher priority)
+  // 2. MAKE extraction - Use word boundaries to avoid substrings (e.g. "Ram" matching "Ramp")
   let make = "Unknown";
-  // Pass 1: Check title
   for (const m of MAKES) {
     if (new RegExp(`\\b${m}\\b`, "i").test(titleText)) {
       make = MAKE_NORMALIZATION[m] || capitalize(m);
       break;
     }
   }
-  // Pass 2: Check description only if title failed
   if (make === "Unknown") {
     for (const m of MAKES) {
       if (new RegExp(`\\b${m}\\b`, "i").test(descriptionText)) {
@@ -113,63 +116,51 @@ export function parseListingText(title: string, description: string = ""): Parse
     }
   }
 
-  // 3. MODEL extraction & Implicit Make Detection
+  // 3. MODEL extraction & Mapping
   let model = "Unknown";
+  
   if (make !== "Unknown") {
     const definedModels = MODEL_MAP[make] || [];
+    // Sort by length descending to match "Grand Cherokee" before "Cherokee"
     const sortedModels = [...definedModels].sort((a, b) => b.length - a.length);
-    // Pass 1: Check title
+    
+    // Check title then description
     for (const m of sortedModels) {
-      if (new RegExp(`\\b${m.replace("-", "[- ]?")}\\b`, "i").test(titleText)) {
+      const escapedModel = m.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/[- ]/g, "[- ]?");
+      if (new RegExp(`\\b${escapedModel}\\b`, "i").test(fullText)) {
         model = MODEL_DISPLAY_NAMES[m] || capitalize(m);
         break;
       }
     }
-    // Pass 2: Check description only if title failed
-    if (model === "Unknown") {
-      for (const m of sortedModels) {
-        if (new RegExp(`\\b${m.replace("-", "[- ]?")}\\b`, "i").test(descriptionText)) {
-          model = MODEL_DISPLAY_NAMES[m] || capitalize(m);
+  }
+
+  // 3.1 Reverse Look-up (Model -> Make) if Make is still unknown
+  if (make === "Unknown") {
+    for (const [mKey, mList] of Object.entries(MODEL_MAP)) {
+      const sortedMList = [...mList].sort((a,b) => b.length - a.length);
+      for (const mName of sortedMList) {
+        const escapedMName = mName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/[- ]/g, "[- ]?");
+        if (new RegExp(`\\b${escapedMName}\\b`, "i").test(titleText)) {
+          make = mKey;
+          model = MODEL_DISPLAY_NAMES[mName] || capitalize(mName);
           break;
         }
       }
-    }
-  } else {
-    // Try to find make via model match if make is missing - check title FIRST
-    outer: for (const [mKey, mList] of Object.entries(MODEL_MAP)) {
-      for (const mName of mList) {
-        if (new RegExp(`\\b${mName.replace("-", "[- ]?")}\\b`, "i").test(titleText)) {
-          make = mKey;
-          model = MODEL_DISPLAY_NAMES[mName] || capitalize(mName);
-          break outer;
-        }
-      }
-    }
-    // Fallback to description for make/model via model match
-    if (make === "Unknown") {
-      outer: for (const [mKey, mList] of Object.entries(MODEL_MAP)) {
-        for (const mName of mList) {
-          if (new RegExp(`\\b${mName.replace("-", "[- ]?")}\\b`, "i").test(descriptionText)) {
-            make = mKey;
-            model = MODEL_DISPLAY_NAMES[mName] || capitalize(mName);
-            break outer;
-          }
-        }
-      }
+      if (make !== "Unknown") break;
     }
   }
 
-  // 3.5 DIGIT-ONLY MODEL FALLBACK (The Truck Logic)
-  if (model === "Unknown" && make !== "Unknown") {
-    const truckDigits = fullText.match(/\b(1500|2500|3500)\b/);
-    if (truckDigits) {
-      if (make === "Chevrolet") model = "Silverado";
-      if (make === "Gmc") model = "Sierra";
-      if (make === "Ram") model = "Ram 1500";
-    }
+  // 3.2 Special Case: BMW/Mercedes series matching
+  if (make === "BMW" && model === "Unknown") {
+    const seriesMatch = fullText.match(/\b([1-8])\s*(?:series|serie)\b/i) || fullText.match(/\b([1-8])(\d{2})i?\b/i);
+    if (seriesMatch) model = `${seriesMatch[1]} Series`;
+  }
+  if (make === "Mercedes-Benz" && model === "Unknown") {
+    const classMatch = fullText.match(/\b([cesgl]\d{3})\b/i) || fullText.match(/\b([abcesglk])\s*class\b/i);
+    if (classMatch) model = `${classMatch[1].toUpperCase()}-Class`;
   }
 
-  if (make === "Unknown") parseScore -= 20;
+  if (make === "Unknown") parseScore -= 25;
   if (model === "Unknown") parseScore -= 15;
 
   // 4. TRIM extraction
@@ -182,91 +173,63 @@ export function parseListingText(title: string, description: string = ""): Parse
     }
   }
 
-  // 5. MILEAGE extraction
+  // 5. MILEAGE extraction - Improved robustness
   let mileage: number | null = null;
-  const m1 = fullText.match(/(\d{1,3}(?:,\d{3})*)\s*(?:miles?|mi\.?|mls?)\b/i);
-  const m2 = fullText.match(/(\d{1,3}(?:,\d{3})*)\s*(?:k)\s*(?:miles?|mi\.?)?\b/i);
-  const m3 = fullText.match(/\b(\d{1,3})k\b/i);
+  // Regex 1: "125,000 miles" or "125k"
+  const mMatch = fullText.match(/(\d{1,3}(?:[ ,]\d{3})*)\s*(?:miles?|mi\.?|mls?)\b/i) || 
+                 fullText.match(/(\d{1,3}(?:[.,]\d{1,3})?)\s*k\s*(?:miles?|mi\.?|mls?)?\b/i) ||
+                 fullText.match(/\b(\d{1,3})k\b/i);
 
-  if (m1) {
-    mileage = parseInt(m1[1].replace(/,/g, ""), 10);
-  } else if (m2) {
-    mileage = parseInt(m2[1].replace(/,/g, ""), 10) * 1000;
-  } else if (m3) {
-    mileage = parseInt(m3[1], 10) * 1000;
+  if (mMatch) {
+    const valStr = mMatch[1].replace(/[ ,]/g, "");
+    let val = parseFloat(valStr);
+    if (mMatch[0].toLowerCase().includes('k')) val *= 1000;
+    mileage = Math.round(val);
   } else {
-    // Try "Unit then Number" e.g. "miles: 45000" or "miles 45,000"
-    // Handle specific "miles 45000" or "miles: 45000"
-    const m4 = fullText.match(/(?:miles?|mi\.?|mls?|mileage)[^0-9\n]{0,10}(\d{1,3}(?:,\d{3})*)\b/i);
-    if (m4) {
-      mileage = parseInt(m4[1].replace(/,/g, ""), 10);
-    }
-    if (mileage === null) {
-       // FINAL FALLBACK: just look for a large number 500-400000 that isn't the year
-       const allNums = fullText.match(/\b\d{3,6}\b/g);
-       if (allNums) {
-         for (const nStr of allNums) {
-           const n = parseInt(nStr, 10);
-           if (n > 500 && n < 500000 && n !== year) {
-             mileage = n;
-             break;
-           }
-         }
-       }
+    // Regex 2: "Kilométrage: 125000" or "Miles: 125000"
+    const mLabel = fullText.match(/(?:mileage|miles|mi\.?|mls?|kilométrage|km)[^0-9]{0,10}(\d{1,3}(?:[ ,]\d{3})*)\b/i);
+    if (mLabel) {
+      mileage = parseInt(mLabel[1].replace(/[ ,]/g, ""), 10);
     }
   }
 
-  if (mileage != null && (mileage < 100 || mileage > 500000)) {
-    mileage = null;
+  // Validate mileage (must be sane)
+  if (mileage !== null && (mileage < 100 || mileage > 600000)) {
+    // Check if it's actually 1900-2026 (likely a year)
+    if (mileage >= 1950 && mileage <= 2026) mileage = null;
+    else if (mileage > 600000) mileage = null;
   }
   if (mileage === null) parseScore -= 10;
 
   // 6. TRANSMISSION
   let transmission: string | null = null;
-  if (/\b(automatic|auto)\b/i.test(fullText)) transmission = "automatic";
-  else if (/\b(manual|stick|stick shift|6-speed|5-speed)\b/i.test(fullText)) transmission = "manual";
+  if (/\b(automatic|auto|automatica|at)\b/i.test(fullText)) transmission = "automatic";
+  else if (/\b(manual|stick|standard|6-speed|5-speed|manuelle|mt)\b/i.test(fullText)) transmission = "manual";
   else if (/\bcvt\b/i.test(fullText)) transmission = "CVT";
-  if (!transmission) parseScore -= 5;
 
   // 7. DRIVE TYPE
   let driveType: string | null = null;
-  if (/\b(4x4|4wd|four wheel drive|four-wheel)\b/i.test(fullText)) driveType = "4WD";
-  else if (/\b(awd|all wheel drive|all-wheel)\b/i.test(fullText)) driveType = "AWD";
-  else if (/\b(fwd|front wheel drive|front-wheel)\b/i.test(fullText)) driveType = "FWD";
-  else if (/\b(rwd|rear wheel drive|rear-wheel|2wd)\b/i.test(fullText)) driveType = "RWD";
+  if (/\b(4x4|4wd|4x2|awd|fwd|rwd|all.wheel.drive|4.wheel.drive|four.wheel.drive)\b/i.test(fullText)) {
+      const dt = fullText.match(/\b(4x4|4wd|4x2|awd|fwd|rwd)\b/i)?.[0].toUpperCase();
+      driveType = dt === '4X4' ? '4WD' : dt;
+  }
 
   // 8. ENGINE
   let engine: string | null = null;
-  const vMatch = fullText.match(/\b(v\d)\b/i);
-  const lMatch = fullText.match(/\b(\d+(?:\.\d+)?)\s*l(?:iter)?\b/i);
-  const parts: string[] = [];
-  if (vMatch) parts.push(vMatch[1].toUpperCase());
-  if (lMatch) parts.push(lMatch[1].toUpperCase() + "L");
-  if (/\b(4[- ]?cyl(?:inder)?|four[- ]?cyl(?:inder)?)\b/i.test(fullText)) parts.push("4-cylinder");
-  if (/\b(6[- ]?cyl(?:inder)?|six[- ]?cyl(?:inder)?)\b/i.test(fullText)) parts.push("6-cylinder");
-  if (/\bturbo(?:charged)?\b/i.test(fullText)) parts.push("turbocharged");
-  engine = parts.join(" ") || null;
+  const engMatch = fullText.match(/\b(v\d|l\d|inline\s*\d|\d\.\d\s*l|turbo|hybrid|diesel)\b/i);
+  if (engMatch) engine = engMatch[0].toUpperCase();
 
   // 9. FUEL TYPE
   let fuelType: string | null = "gasoline";
-  if (make === "Tesla" || /\b(electric|ev|battery)\b/i.test(fullText)) {
-    fuelType = "electric";
-  } else if (/\b(hybrid|plug-in|phev|prius)\b/i.test(fullText)) {
-    fuelType = "hybrid";
-  } else if (/\b(diesel|duramax|cummins|powerstroke)\b/i.test(fullText)) {
-    fuelType = "diesel";
-  }
+  if (make === "Tesla" || /\b(electric|ev|bev)\b/i.test(fullText)) fuelType = "electric";
+  else if (/\b(hybrid|phev|hybrid synergestic)\b/i.test(fullText)) fuelType = "hybrid";
+  else if (/\b(diesel|tdi|duramax|powerstroke|cummins)\b/i.test(fullText)) fuelType = "diesel";
 
   // 10. BODY STYLE
   let bodyStyle: string | null = null;
-  if (/\b(truck|pickup|f150|silverado|tacoma|tundra|sierra|ranger)\b/i.test(fullText)) bodyStyle = "truck";
-  else if (/\b(suv|crossover|rav4|cr-v|explorer|highlander|pathfinder)\b/i.test(fullText)) bodyStyle = "suv";
-  else if (/\b(sedan|camry|accord|altima|civic|corolla|malibu)\b/i.test(fullText)) bodyStyle = "sedan";
-  else if (/\b(coupe|mustang|camaro|charger|challenger)\b/i.test(fullText)) bodyStyle = "coupe";
-  else if (/\b(van|minivan|odyssey|sienna|caravan|transit)\b/i.test(fullText)) bodyStyle = "van";
-  else if (/\b(convertible|cabriolet|roadster|spyder)\b/i.test(fullText)) bodyStyle = "convertible";
-  else if (/\b(hatchback|hatch|golf|fit|soul)\b/i.test(fullText)) bodyStyle = "hatchback";
-  else if (/\b(wagon|outback|legacy wagon)\b/i.test(fullText)) bodyStyle = "wagon";
+  if (/\b(sedan|cupe|coupe|suv|truck|pickup|van|minivan|hatchback|convertible|wagon)\b/i.test(fullText)) {
+      bodyStyle = fullText.match(/\b(sedan|coupe|suv|truck|van|hatchback|convertible|wagon)\b/i)?.[0].toLowerCase() || null;
+  }
 
   // 11. COLOR
   let color: string | null = null;
@@ -276,51 +239,16 @@ export function parseListingText(title: string, description: string = ""): Parse
       break;
     }
   }
-  if (!color) parseScore -= 5;
 
   // 12. TITLE STATUS
   let titleStatus: string | null = null;
-  if (/\b(clean title|clear title)\b/i.test(fullText)) titleStatus = "clean";
-  else if (/\b(salvage|salvage title|rebuilt title|rebuilt|flood|lemon)\b/i.test(fullText)) titleStatus = "salvage";
-  else if (/\b(lien|lien on title)\b/i.test(fullText)) titleStatus = "lien";
-  if (!titleStatus) parseScore -= 5;
+  if (/\b(clean|clear)\s*title\b/i.test(fullText)) titleStatus = "clean";
+  else if (/\b(salvage|rebuilt|rebuilt\s*title|lemon|reconstruction)\b/i.test(fullText)) titleStatus = "salvage";
 
-  // 13. OWNERS
-  let owners: number | null = null;
-  if (/\b(one owner|1 owner|single owner|1st owner)\b/i.test(fullText)) owners = 1;
-  else if (/\b(two owners|2 owners|second owner)\b/i.test(fullText)) owners = 2;
-  else if (/\b(three owners|3 owners)\b/i.test(fullText)) owners = 3;
-
-  // 14. ACCIDENTS
-  let accidents: boolean | null = null;
-  if (/\b(no accidents|no accident|accident free|accident-free|clean carfax)\b/i.test(fullText)) accidents = false;
-  else if (/\b(has accident|accident history|minor accident|fender bender)\b/i.test(fullText)) accidents = true;
-
-  // 15. CONDITION
-  let condScore = 0;
-  // Boost "like new" and "perfect" to have more weight
-  if (/\b(perfect|immaculate|like new|mint|pristine|runs perfect|no issues)\b/i.test(fullText)) condScore += 3;
-  
-  for (const s of POSITIVE_SIGNALS) {
-    if (new RegExp(`\\b${s}\\b`, "i").test(fullText)) {
-      condScore += 1;
-    }
-  }
-  for (const s of NEGATIVE_SIGNALS) {
-    if (new RegExp(`\\b${s}\\b`, "i").test(fullText)) condScore -= 2;
-  }
-  let condition: string | null = "fair";
-  if (condScore >= 3) condition = "excellent";
-  else if (condScore >= 1) condition = "good";
-  else if (condScore >= -1) condition = "fair";
-  else condition = "poor";
-
-  // 16. FEATURES
+  // 13. CONDITION & FEATURES
   const featuresSet = new Set<string>();
   for (const f of FEATURE_KEYWORDS) {
-    if (new RegExp(`\\b${f}\\b`, "i").test(fullText)) {
-      featuresSet.add(f);
-    }
+    if (new RegExp(`\\b${f}\\b`, "i").test(fullText)) featuresSet.add(f);
   }
 
   const isJunk = isJunkTitle(title);
@@ -336,12 +264,12 @@ export function parseListingText(title: string, description: string = ""): Parse
     transmission,
     fuelType,
     color,
-    doors: (/\b(2|2-?door)\b/i.test(fullText)) ? 2 : (/\b(4|4-?door)\b/i.test(fullText)) ? 4 : null,
+    doors: (/\b(2|4)\s*door\b/i.test(fullText)) ? parseInt(fullText.match(/\b(2|4)\b/)?.[0] || "4") : null,
     mileage,
     titleStatus,
-    condition,
-    accidents,
-    owners,
+    condition: (/\b(excellent|perfect|mint|new)\b/i.test(fullText)) ? "excellent" : (/\b(fair|good)\b/i.test(fullText)) ? "good" : "fair",
+    accidents: (/\b(no\s*accidents|no\s*accident|accident\s*free)\b/i.test(fullText)) ? false : (/\b(accident|fender\s*bender)\b/i.test(fullText)) ? true : null,
+    owners: (/\b(1\s*owner|one\s*owner)\b/i.test(fullText)) ? 1 : (/\b(2\s*owners|two\s*owners)\b/i.test(fullText)) ? 2 : null,
     features: Array.from(featuresSet),
     parseScore: Math.max(0, parseScore),
     isJunk
