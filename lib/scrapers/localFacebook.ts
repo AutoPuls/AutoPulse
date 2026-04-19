@@ -172,10 +172,10 @@ export async function scrapeLocalMarketplace(
 
     // v8.5: High-Volume Deep Scroll
     // We scroll multiple times to load the extra listings needed to populate the site fast
-    console.log(`[AutoPulse-v8] 📜 Deep Scrolling for maximum volume...`);
-    for (let i = 0; i < 6; i++) {
+    console.log(`[AutoPulse-v8] 📜 Mega Deep Scroll (20 iterations) for maximum volume...`);
+    for (let i = 0; i < 20; i++) {
         await page.evaluate(() => window.scrollBy(0, 1500));
-        await page.waitForTimeout(1000);
+        await page.waitForTimeout(800); // Shorter wait for faster scroll
     }
 
     const listings: ListingRaw[] = await page.evaluate(() => {
