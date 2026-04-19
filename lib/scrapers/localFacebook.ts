@@ -378,14 +378,10 @@ export async function enrichListingLocally(listingId: string) {
                     .map(el => (el as HTMLElement).innerText.trim())
                     .filter(t => t.length > 30); // Filter out short fragments (price, name, etc)
 
-                // The description is typically the longest text block that doesn't repeat the title or city
-                const titleLower = document.title.toLowerCase();
-                const likelyDesc = textBlocks.find(t => 
-                    t.length > 50 && 
-                    !titleLower.includes(t.toLowerCase().substring(0, 20)) // Not the title
-                );
-
-                descriptionText = likelyDesc || textBlocks[0] || "";
+                // The description is typically the longest text block in the panel
+                // We just need to make sure we don't pick the 'Johnstown, OH' location text
+                const sortedBlocks = textBlocks.sort((a, b) => b.length - a.length);
+                descriptionText = sortedBlocks.find(t => t.length > 50 && !t.includes(',') ) || sortedBlocks[0] || "";
             }
 
             // Fallback for different languages / layouts
