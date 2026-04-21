@@ -71,6 +71,19 @@ const FORCED_LOCATION_IDS: Record<string, string> = {
   'dallas': '110196722340360',
 };
 
+async function withDbRetry<T>(fn: () => Promise<T>, retries = 3): Promise<T> {
+    for (let i = 0; i < retries; i++) {
+        try {
+            return await fn();
+        } catch (err: any) {
+            if (i === retries - 1) throw err;
+            console.warn(`[AutoPulse-v8] ⚠️ DB Error (${err.message}). Retrying ${i + 1}/${retries} in 2s...`);
+            await new Promise(r => setTimeout(r, 2000));
+        }
+    }
+    throw new Error('Unreachable');
+}
+
 export async function scrapeLocalMarketplace(
   location: string,
   options: { filters?: MarketplaceScrapeFilters; scrollDepth?: number } = {}
@@ -256,7 +269,7 @@ export async function scrapeLocalMarketplace(
 
         const parsed = parseListingText(item.title, item.title); // Basic parse first
         
-        await prisma.listing.upsert({
+        await withDbRetry(() => prisma.listing.upsert({
             where: { externalId: item.externalId },
             update: {
                 price: priceCents,
@@ -277,7 +290,7 @@ export async function scrapeLocalMarketplace(
                 description: `AutoPulse v8 captured: ${item.title}`,
                 parsedAt: new Date(),
             }
-        });
+        }));
 
         const quickParsed = parseListingText(item.title, "");
         const isUnknown = quickParsed.make === "Unknown" || quickParsed.model === "Unknown" || !quickParsed.year;
@@ -327,9 +340,9 @@ export async function scrapeLocalMarketplace(
 export async function enrichListingLocally(listingId: string) {
     console.log(`[AutoPulse-v8] 📈 Deep Enrichment for ${listingId}...`);
     
-    const listing = await prisma.listing.findUnique({
+    const listing = await withDbRetry(() => prisma.listing.findUnique({
         where: { externalId: listingId }
-    });
+    }));
     if (!listing) return null;
 
     const proxyUrl = process.env.FB_PROXY;
@@ -512,7 +525,7 @@ export async function enrichListingLocally(listingId: string) {
         const finalMileage = parsed.mileage || (mileageItem ? parseInt(mileageItem.replace(/\D/g, ''), 10) : extraMileage) || listing.mileage;
         const finalTransmission = parsed.transmission || (transmissionItem?.toLowerCase().includes('auto') ? 'automatic' : transmissionItem?.toLowerCase().includes('man') ? 'manual' : listing.transmission);
 
-        await prisma.listing.update({
+        await withDbRetry(() => prisma.listing.update({
             where: { externalId: listingId },
             data: {
                 description: finalDesc,
@@ -527,7 +540,7 @@ export async function enrichListingLocally(listingId: string) {
                 postedAt: postedAt || listing.postedAt,
                 updatedAt: new Date(),
             }
-        });
+        }));
 
         console.log(`[AutoPulse-v8] ✨ Deep Sync OK: ${listingId} | Time: ${details.timeRaw || 'Unknown'} | Desc: ${finalDesc.substring(0, 30)}...`);
         return true;
@@ -602,7 +615,7 @@ export async function enrichListingsBulkLocally(listingIds: string[], concurrenc
             await page.route('**/*.{png,jpg,jpeg,webp,gif,css,svg,woff,woff2,mp4}', route => route.abort());
 
             try {
-                const listing = await prisma.listing.findUnique({ where: { externalId: listingId } });
+                const listing = await withDbRetry(() => prisma.listing.findUnique({ where: { externalId: listingId } }));
                 if (!listing) return;
 
                 await page.goto(listing.listingUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
@@ -690,7 +703,7 @@ export async function enrichListingsBulkLocally(listingIds: string[], concurrenc
                 }
                 const finalMileage = parsed.mileage || (mileageItem ? parseInt(mileageItem.replace(/\D/g, ''), 10) : extraMileage) || listing.mileage;
 
-                await prisma.listing.update({
+                await withDbRetry(() => prisma.listing.update({
                     where: { externalId: listingId },
                     data: {
                         description: finalDesc,
@@ -705,7 +718,7 @@ export async function enrichListingsBulkLocally(listingIds: string[], concurrenc
                         features: parsed.features,
                         updatedAt: new Date(),
                     }
-                });
+                }));
 
                 try {
                     const matchQueue = getAlertMatchQueue();

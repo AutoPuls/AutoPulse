@@ -10,7 +10,7 @@ function createPrismaClient() {
   const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false },
-    max: 4, // Heavily restricted to avoid pooler exhaust
+    max: 20, // Increased to support high concurrency during Mega Harvest
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 60000, // Increase timeout to 60s for stability
   });
