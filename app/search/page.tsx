@@ -1,6 +1,5 @@
 import type { ReactElement } from "react";
 import { Suspense } from "react";
-import { prisma } from "@/lib/prisma";
 import {
   buildListingWhere,
   parseListingParams,
@@ -21,6 +20,7 @@ type PageProps = {
 export default async function SearchPage({
   searchParams,
 }: PageProps): Promise<ReactElement> {
+  const { prisma } = await import("@/lib/prisma");
   const parsed = parseListingParams(searchParams);
   const where = buildListingWhere(parsed);
   const skip = (parsed.page - 1) * parsed.limit;

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma } from "@/lib/prisma";
 import { confirmationEmail, sendMail } from "@/lib/mailer";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +29,7 @@ const bodySchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    const { prisma } = await import("@/lib/prisma");
     const json: unknown = await req.json();
     const parsed = bodySchema.safeParse(json);
     if (!parsed.success) {
