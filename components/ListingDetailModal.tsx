@@ -195,7 +195,12 @@ export function ListingDetailModal({
             </div>
             
             <Button asChild className="w-full h-16 rounded-2xl bg-cyber-blue text-black font-black text-xs tracking-widest uppercase shadow-2xl shadow-cyan-500/30 hover:scale-[1.02] hover:bg-cyan-400 active:scale-95 transition-all border-none group/item">
-              <a href={listing.listingUrl} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2">
+              <a 
+                href={listing.listingUrl || `https://www.facebook.com/marketplace/item/${listing.externalId}/`} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="flex items-center justify-center gap-2"
+              >
                  VIEW ON FACEBOOK <ExternalLink size={18} className="transition-transform group-hover/item:translate-x-1" />
               </a>
             </Button>
@@ -333,8 +338,7 @@ export function ListingDetailModal({
                   isRefreshing ? "opacity-30 blur-sm scale-[0.98]" : "opacity-100"
                 )}>
                   <div className={cn(
-                    "leading-relaxed text-foreground/70 text-[15px] font-medium whitespace-pre-wrap transition-all duration-700",
-                    !isExpanded && "line-clamp-[4]"
+                    "leading-relaxed text-foreground/70 text-[15px] font-medium whitespace-pre-wrap transition-all duration-700"
                   )}>
                     {(() => {
                       const desc = (listing.rawDescription || listing.description || "");

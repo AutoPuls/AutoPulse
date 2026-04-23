@@ -44,8 +44,13 @@ export async function POST(req: Request) {
       try {
         const description = item.redacted_description?.text || '';
         const title = item.marketplace_listing_title || item.custom_title || '';
+        const externalId = item.id || item.url?.match(/item\/(\d+)/)?.[1] || Math.random().toString();
         
-        // BETTER MAPPING
+        // Construct clean FB marketplace URL
+        const listingUrl = externalId.match(/^\d+$/) 
+          ? `https://www.facebook.com/marketplace/item/${externalId}/`
+          : item.url || '';
+
         const year = item.vehicle_year || parseYear(title, description);
         const make = item.vehicle_make_display_name || 'Unknown';
         const model = item.vehicle_model_display_name || 'Unknown';
@@ -54,14 +59,12 @@ export async function POST(req: Request) {
           ? Math.round(parseFloat(item.listing_price.amount) * 100) 
           : 0;
 
-        // Try multiple sources for mileage
         let mileage = item.vehicle_odometer_data?.value || parseMileageFromText(description);
         if (!mileage && item.custom_sub_titles_with_rendering_flags) {
           const sub = item.custom_sub_titles_with_rendering_flags[0]?.subtitle || '';
           mileage = parseMileageFromText(sub);
         }
 
-        // Try multiple sources for images
         let images = [];
         if (item.primary_listing_photo_url) images.push(item.primary_listing_photo_url);
         if (item.listing_photos && Array.isArray(item.listing_photos)) {
@@ -70,7 +73,7 @@ export async function POST(req: Request) {
         }
 
         const listingData = {
-          externalId: item.id || item.url || Math.random().toString(),
+          externalId: externalId,
           source: 'facebook',
           rawTitle: title,
           make: make,
@@ -81,7 +84,7 @@ export async function POST(req: Request) {
           city: item.location_text?.text?.split(',')[0]?.trim() || null,
           state: item.location_text?.text?.split(',')[1]?.trim() || null,
           imageUrls: images,
-          listingUrl: item.url || item.listingUrl || '',
+          listingUrl: listingUrl,
           description: description,
           postedAt: item.creation_time ? new Date(item.creation_time * 1000) : new Date(),
         };
