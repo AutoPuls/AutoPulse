@@ -56,8 +56,16 @@ export async function GET(req: NextRequest) {
       totalPages,
     });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "Failed to fetch listings";
-    console.error("[api/listings]", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    const error = e as any;
+    console.error("[api/listings] DB Failure:", {
+      message: error.message,
+      code: error.code,
+      meta: error.meta,
+    });
+    return NextResponse.json({ 
+      error: "Database Connection Failed", 
+      details: error.message,
+      code: error.code 
+    }, { status: 500 });
   }
 }
