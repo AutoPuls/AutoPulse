@@ -1,4 +1,5 @@
 import { Listing, Prisma, Subscription } from "@prisma/client";
+import { newListingsEmail, sendMail, MailListing } from "./mailer";
 
 /**
  * Finds all active subscriptions that match a given listing's attributes.
@@ -18,22 +19,18 @@ export async function findMatchingSubscriptions(listing: Listing): Promise<Subsc
 
   const where: Prisma.SubscriptionWhereInput = {
     AND: [
-      // Make/Model matching (Case insensitive contains or exact)
       {
         OR: [
           { make: null },
           { make: { equals: listing.make?.trim(), mode: 'insensitive' } },
-          { make: { equals: listing.make?.trim() + " ", mode: 'insensitive' } }, // Handle common trailing space in DB
         ]
       },
       {
         OR: [
           { model: null },
           { model: { equals: listing.model?.trim(), mode: 'insensitive' } },
-          { model: { equals: listing.model?.trim() + " ", mode: 'insensitive' } },
         ]
       },
-      // Numeric ranges
       {
         OR: [
           { yearMin: null },
@@ -64,60 +61,68 @@ export async function findMatchingSubscriptions(listing: Listing): Promise<Subsc
           { mileageMax: { gte: listing.mileage ?? 9999999 } }
         ]
       },
-      // City matching
       {
         OR: [
           { city: null },
           { city: { equals: listing.city ?? '', mode: 'insensitive' } },
         ]
-      },
-      // Advanced Filters
-      {
-        OR: [
-          { titleStatus: null },
-          { titleStatus: { equals: listing.titleStatus ?? '', mode: 'insensitive' } }
-        ]
-      },
-      {
-        OR: [
-          { transmission: null },
-          { transmission: { equals: listing.transmission ?? '', mode: 'insensitive' } }
-        ]
-      },
-      {
-        OR: [
-          { fuelType: null },
-          { fuelType: { equals: listing.fuelType ?? '', mode: 'insensitive' } }
-        ]
-      },
-      {
-        OR: [
-          { color: null },
-          { color: { equals: listing.color ?? '', mode: 'insensitive' } }
-        ]
-      },
-      {
-        OR: [
-          { bodyStyle: null },
-          { bodyStyle: { equals: listing.bodyStyle ?? '', mode: 'insensitive' } }
-        ]
-      },
-      {
-        OR: [
-          { driveType: null },
-          { driveType: { equals: listing.driveType ?? '', mode: 'insensitive' } }
-        ]
       }
     ]
   };
 
-  const matches = await prisma.subscription.findMany({ where });
+  return await prisma.subscription.findMany({ where });
+}
 
-  // Post-filtering for keywords (until Prisma supports array-to-string overlaps natively)
-  return matches.filter(sub => {
-    if (!sub.keywords || sub.keywords.length === 0) return true;
-    
-    const searchText = `${listing.rawTitle} ${listing.rawDescription}`.toLowerCase();
-    return sub.keywords.some(kw => searchText.includes(kw.toLowerCase()));
-  });
+/**
+ * Orchestrates matching and alerting for a single new listing.
+ */
+export async function matchListingToSubscriptions(listing: Listing) {
+  try {
+    const matches = await findMatchingSubscriptions(listing);
+    if (matches.length === 0) return;
+
+    const mailListing: MailListing = {
+      id: listing.id,
+      make: listing.make,
+      model: listing.model,
+      year: listing.year,
+      price: listing.price,
+      mileage: listing.mileage,
+      city: listing.city,
+      state: listing.state,
+      imageUrls: listing.imageUrls,
+      listingUrl: listing.listingUrl
+    };
+
+    for (const sub of matches) {
+      try {
+        const { subject, html } = newListingsEmail({
+          email: sub.email,
+          listings: [mailListing],
+          filters: {
+            make: sub.make || undefined,
+            model: sub.model || undefined,
+            yearMin: sub.yearMin || undefined,
+            yearMax: sub.yearMax || undefined,
+            priceMin: sub.priceMin || undefined,
+            priceMax: sub.priceMax || undefined,
+            mileageMax: sub.mileageMax || undefined,
+            city: sub.city || undefined,
+          }
+        });
+
+        await sendMail({
+          to: sub.email,
+          subject,
+          html
+        });
+        
+        console.log(`[alertMatcher] Sent alert to ${sub.email} for ${listing.make} ${listing.model}`);
+      } catch (err) {
+        console.error(`[alertMatcher] Failed to send email to ${sub.email}:`, err);
+      }
+    }
+  } catch (err) {
+    console.error(`[alertMatcher] Processing error:`, err);
+  }
 }
