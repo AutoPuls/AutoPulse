@@ -1,4 +1,4 @@
-import { Listing, Prisma, Subscription } from "@prisma/client";
+import { Listing, Prisma, Subscription } from "@/prisma/generated/client";
 
 /**
  * Finds all active subscriptions that match a given listing's attributes.
