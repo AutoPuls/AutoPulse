@@ -1,10 +1,10 @@
 {
-  "name": "autopulse",
+  "name": "autopulse-standard",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build",
+    "build": "prisma generate --schema=./prisma/schema.prisma && next build",
     "start": "next start",
     "lint": "next lint",
     "workers": "ts-node --project tsconfig.json scripts/keepAlive.ts",
