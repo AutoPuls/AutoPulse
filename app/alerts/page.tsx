@@ -1,25 +1,17 @@
 import type { ReactElement } from "react";
-import { prisma } from "@/lib/prisma";
 import { 
   Bell, 
-  Car, 
-  MapPin, 
-  DollarSign, 
-  Gauge, 
-  Calendar, 
   Trash2, 
   Mail,
   Zap,
-  Clock
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-
 import { SubscriptionCard } from "@/components/SubscriptionCard";
 
 export const dynamic = "force-dynamic";
 
 export default async function AlertsPage(): Promise<ReactElement> {
+  const { prisma } = await import("@/lib/prisma");
   let subscriptions: any[] = [];
 
   try {
