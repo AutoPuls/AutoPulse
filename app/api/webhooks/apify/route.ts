@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import 'proxy-agent';
 export const dynamic = 'force-dynamic';
 import { ApifyClient } from 'apify-client';
 import { parseListingText } from '@/lib/parser/listingParser';
