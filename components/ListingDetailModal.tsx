@@ -177,7 +177,7 @@ export function ListingDetailModal({
         {/* LEFT DECK: Sticky Media & Action Portal */}
         <div className="w-full sm:w-[45%] h-[280px] sm:h-full relative bg-black shrink-0 group">
           <img 
-            src={listing.imageUrl || "/placeholder-car.svg"} 
+            src={(listing.imageUrls && listing.imageUrls.length > 0) ? listing.imageUrls[0] : "/placeholder-car.svg"} 
             alt={title} 
             className="h-full w-full object-cover transition-transform duration-[2000ms] group-hover:scale-110"
           />

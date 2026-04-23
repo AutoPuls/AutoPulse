@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
           make: true,
           model: true,
           price: true,
-          imageUrl: true,
+          imageUrls: true,
           city: true,
           state: true,
           mileage: true,

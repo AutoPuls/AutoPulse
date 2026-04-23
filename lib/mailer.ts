@@ -20,7 +20,7 @@ export type MailListing = {
   mileage: number | null;
   city: string | null;
   state: string | null;
-  imageUrl: string | null;
+  imageUrls: string[];
   listingUrl: string;
 };
 
@@ -158,8 +158,8 @@ export function newListingsEmail(input: {
 
   const rows = listings
     .map((l) => {
-      const img = l.imageUrl
-        ? `<img src="${escapeHtml(l.imageUrl)}" width="60" height="60" alt="" style="width:60px;height:60px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0;"/>`
+      const img = (l.imageUrls && l.imageUrls.length > 0)
+        ? `<img src="${escapeHtml(l.imageUrls[0])}" width="60" height="60" alt="" style="width:60px;height:60px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0;"/>`
         : `<div style="width:60px;height:60px;background:#e2e8f0;border-radius:8px;"></div>`;
       const loc = [l.city, l.state].filter(Boolean).join(", ") || "—";
       const mileage =

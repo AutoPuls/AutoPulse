@@ -37,7 +37,7 @@ export default async function SearchPage({
         make: true,
         model: true,
         price: true,
-        imageUrl: true,
+        imageUrls: true,
         city: true,
         state: true,
         mileage: true,

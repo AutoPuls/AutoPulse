@@ -38,7 +38,7 @@ const placeholderSvg =
 
 export const ListingCard = memo(function ListingCard({ listing }: { listing: any }): React.ReactElement {
   const [imgOk, setImgOk] = useState(true);
-  const src = listing.imageUrl && imgOk ? listing.imageUrl : placeholderSvg;
+  const src = (listing.imageUrls && listing.imageUrls.length > 0) && imgOk ? listing.imageUrls[0] : placeholderSvg;
 
   const hasParsedMake = listing.make !== "Unknown";
   const hasParsedModel = listing.model !== "Unknown";
