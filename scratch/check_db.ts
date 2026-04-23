@@ -1,27 +1,18 @@
-import { PrismaClient } from "@prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
-import { Pool } from "pg";
-import * as dotenv from "dotenv";
+import { prisma } from './lib/db';
 
-dotenv.config();
-
-async function main() {
-  const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false },
-  });
-  const adapter = new PrismaPg(pool);
-  const prisma = new PrismaClient({ adapter });
-
+async function check() {
   try {
     const count = await prisma.listing.count();
-    console.log("Listing count:", count);
+    console.log(`Total listings in database: ${count}`);
+    const latest = await prisma.listing.findFirst({
+      orderBy: { createdAt: 'desc' }
+    });
+    console.log(`Latest listing: ${JSON.stringify(latest, null, 2)}`);
   } catch (e) {
-    console.error("DB Error:", e);
+    console.error('Database check failed:', e);
   } finally {
     await prisma.$disconnect();
-    await pool.end();
   }
 }
 
-main();
+check();
