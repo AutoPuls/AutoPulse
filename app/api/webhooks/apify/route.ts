@@ -1,15 +1,13 @@
 import { NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import { ApifyClient } from 'apify-client';
 import { parseListingText } from '@/lib/parser/listingParser';
 
-const prisma = new PrismaClient();
-const apifyClient = new ApifyClient({
-  token: process.env.APIFY_API_TOKEN,
-});
-
 export async function POST(req: Request) {
+  const apifyClient = new ApifyClient({
+    token: process.env.APIFY_API_TOKEN,
+  });
   try {
     const body = await req.json();
 
@@ -184,4 +182,8 @@ async function pushToHuggingFace(cars: any[]) {
   } catch (error) {
     console.error('HF Fetch Error:', error);
   }
+}
+
+export async function GET() {
+  return NextResponse.json({ status: 'Apify Webhook Endpoint Active' });
 }
