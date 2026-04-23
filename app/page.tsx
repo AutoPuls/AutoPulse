@@ -8,7 +8,7 @@ import { unstable_cache } from "next/cache";
 
 const getCachedListingCount = unstable_cache(
   async () => {
-    const { prisma } = await import("@/lib/prisma");
+    const { prisma } = await import("@/lib/db");
     return prisma.listing.count();
   },
   ["listing-count"],

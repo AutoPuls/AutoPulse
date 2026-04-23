@@ -22,7 +22,7 @@ export async function getMarketAnalysis(
     return null;
   }
 
-  const { prisma } = await import("./prisma");
+  const { prisma } = await import("./db");
   const cacheKey = `${make}-${model}-${year}`.toLowerCase();
   const now = Date.now();
   

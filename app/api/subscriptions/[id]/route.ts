@@ -7,7 +7,7 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { prisma } = await import("@/lib/prisma");
+    const { prisma } = await import("@/lib/db");
     const { id } = params;
     
     if (!id) {
@@ -33,7 +33,7 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { prisma } = await import("@/lib/prisma");
+    const { prisma } = await import("@/lib/db");
     const { id } = params;
     const { email } = await req.json();
 

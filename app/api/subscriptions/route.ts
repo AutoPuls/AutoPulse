@@ -29,7 +29,7 @@ const bodySchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const { prisma } = await import("@/lib/prisma");
+    const { prisma } = await import("@/lib/db");
     const json: unknown = await req.json();
     const parsed = bodySchema.safeParse(json);
     if (!parsed.success) {

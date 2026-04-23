@@ -20,7 +20,7 @@ type PageProps = {
 export default async function SearchPage({
   searchParams,
 }: PageProps): Promise<ReactElement> {
-  const { prisma } = await import("@/lib/prisma");
+  const { prisma } = await import("@/lib/db");
   const parsed = parseListingParams(searchParams);
   const where = buildListingWhere(parsed);
   const skip = (parsed.page - 1) * parsed.limit;

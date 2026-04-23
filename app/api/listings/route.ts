@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
-    const { prisma } = await import("@/lib/prisma");
+    const { prisma } = await import("@/lib/db");
     const sp = req.nextUrl.searchParams;
     const raw = Object.fromEntries(sp.entries());
     const parsed = parseListingParams(raw);

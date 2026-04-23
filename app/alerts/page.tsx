@@ -11,7 +11,7 @@ import { SubscriptionCard } from "@/components/SubscriptionCard";
 export const dynamic = "force-dynamic";
 
 export default async function AlertsPage(): Promise<ReactElement> {
-  const { prisma } = await import("@/lib/prisma");
+  const { prisma } = await import("@/lib/db");
   let subscriptions: any[] = [];
 
   try {

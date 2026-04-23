@@ -4,7 +4,7 @@ import { Listing, Prisma, Subscription } from "@prisma/client";
  * Finds all active subscriptions that match a given listing's attributes.
  */
 export async function findMatchingSubscriptions(listing: Listing): Promise<Subscription[]> {
-  const { prisma } = await import("./prisma");
+  const { prisma } = await import("./db");
 
   // --- GLOBAL MOTORCYCLE/JUNK FILTER ---
   const blockRegex = /\b(motorcycle|scooter|moped|dirt bike|atv|utv|harley|yamaha|ninja|tao|grom|ducati|kawasaki|vespa|polaris|can-am|sea-doo|ski-doo|snowmobile|rv|camper|trailer|boat|jet ski)\b/i;
