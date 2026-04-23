@@ -1,27 +1,23 @@
 import { PrismaClient } from "@prisma/client";
 
-// Ensure we are using the stable library engine
-// and not defaulting to 'client' (edge) which requires an adapter.
+// The simplest, most standard way to init Prisma.
+// If this fails, the Vercel logs will show the ACTUAL error.
+
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
-let prisma: PrismaClient;
-
-try {
-  prisma =
-    globalForPrisma.prisma ??
-    new PrismaClient({
-      log: ["error"],
-    });
-
-  if (process.env.NODE_ENV !== "production") {
-    globalForPrisma.prisma = prisma;
-  }
-} catch (e) {
-  console.error("Prisma Initialization Error (Building?):", e);
-  // Fallback for build phase only
-  prisma = {} as PrismaClient;
+// Log presence of URL (but not the URL itself for safety)
+if (!process.env.DATABASE_URL) {
+  console.error("CRITICAL: DATABASE_URL is missing from environment!");
 }
 
-export { prisma };
+export const prisma =
+  globalForPrisma.prisma ??
+  new PrismaClient({
+    log: ["error", "warn"],
+  });
+
+if (process.env.NODE_ENV !== "production") {
+  globalForPrisma.prisma = prisma;
+}
