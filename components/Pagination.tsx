@@ -1,3 +1,5 @@
+"use client";
+
 import * as React from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -39,7 +41,7 @@ export function Pagination({
 
   return (
     <nav
-      className="mt-16 flex flex-wrap items-center justify-center gap-2"
+      className="mt-16 flex flex-wrap items-center justify-center gap-2 pb-10"
       aria-label="Pagination"
     >
       <PaginationLink href={page <= 1 ? null : hrefForPage(page - 1)}>
@@ -49,7 +51,7 @@ export function Pagination({
       {sortedUnique.map((n, idx) => (
         <React.Fragment key={n}>
           {idx > 0 && sortedUnique[idx - 1] !== undefined && n - sortedUnique[idx - 1]! > 1 ? (
-            <span className="px-2 text-white/20 font-black">...</span>
+            <span className="px-1 text-muted-foreground/30 font-bold">...</span>
           ) : null}
           <PaginationLink href={hrefForPage(n)} active={n === page}>
             {n}
@@ -77,7 +79,7 @@ function PaginationLink({
 }): React.ReactElement {
   if (!href) {
     return (
-      <span className="flex h-10 w-10 items-center justify-center rounded-full border border-white/5 bg-white/[0.02] text-white/10">
+      <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-surface text-muted-foreground/20">
         {children}
       </span>
     );
@@ -86,10 +88,10 @@ function PaginationLink({
     <Link
       href={href}
       className={cn(
-        "flex h-10 min-w-[2.5rem] items-center justify-center rounded-full border text-[10px] font-black tracking-widest transition-all",
+        "flex h-10 min-w-[2.5rem] items-center justify-center rounded-xl border px-3 text-xs font-semibold transition-all transition-colors",
         active
-          ? "border-white bg-white text-black shadow-lg"
-          : "border-white/5 bg-white/[0.02] text-white/40 hover:bg-white/5 hover:text-white hover:border-white/20",
+          ? "border-primary bg-primary text-white shadow-blue"
+          : "border-border bg-surface text-muted-foreground hover:bg-surface-raised hover:text-foreground hover:border-primary/40",
       )}
     >
       {children}

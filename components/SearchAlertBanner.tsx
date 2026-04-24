@@ -25,7 +25,7 @@ export function SearchAlertBanner(): React.ReactElement {
         </p>
 
         <p className="text-xs text-muted-foreground leading-relaxed mb-5">
-          Save this configuration to receive real-time alerts when matching vehicles enter the database.
+          Save this configuration to receive real-time uplink transmissions when matching units enter the grid.
         </p>
 
         <button

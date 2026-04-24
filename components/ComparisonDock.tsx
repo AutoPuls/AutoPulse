@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useComparison } from "@/context/ComparisonContext";
-import { X, ArrowRightLeft, Trash2, Maximize2 } from "lucide-react";
+import { X, ArrowRightLeft, Trash2 } from "lucide-react";
 import { Button } from "./ui/button";
 import { ComparisonOverlay } from "./ComparisonOverlay";
 import { cn } from "@/lib/utils";
@@ -15,20 +15,20 @@ export function ComparisonDock() {
 
   return (
     <>
-      <div className="fixed bottom-6 left-1/2 z-[100] w-full max-w-4xl -translate-x-1/2 px-4 animate-in fade-in slide-in-from-bottom-10 duration-700">
-        <div className="flex items-center gap-4 rounded-[2.5rem] bg-background/80 p-2 pl-6 backdrop-blur-3xl ring-1 ring-foreground/10 shadow-2xl">
+      <div className="fixed bottom-6 left-1/2 z-[100] w-full max-w-2xl -translate-x-1/2 px-4 animate-in fade-in slide-in-from-bottom-5 duration-500">
+        <div className="flex items-center gap-4 rounded-3xl bg-background border border-border p-2 pl-5 shadow-modal backdrop-blur-xl">
           
           <div className="flex -space-x-3 overflow-hidden py-1">
             {comparisonList.map((item) => (
               <div 
                 key={item.id} 
-                className="group relative h-12 w-12 shrink-0 rounded-full border-2 border-background bg-card ring-2 ring-foreground/20 overflow-hidden cursor-pointer"
+                className="group relative h-11 w-11 shrink-0 rounded-full border-2 border-background bg-surface overflow-hidden cursor-pointer"
                 onClick={() => removeFromComparison(item.id)}
               >
                 <img 
-                  src={item.imageUrl} 
+                  src={item.imageUrls?.[0] || item.imageUrl} 
                   alt={item.make} 
-                  className="h-full w-full object-cover transition-transform group-hover:scale-125" 
+                  className="h-full w-full object-cover transition-transform group-hover:scale-110" 
                 />
                 <div className="absolute inset-0 flex items-center justify-center bg-background/60 opacity-0 transition-opacity group-hover:opacity-100">
                   <X size={14} className="text-foreground" />
@@ -37,29 +37,32 @@ export function ComparisonDock() {
             ))}
           </div>
 
-          <div className="ml-2 flex-1 hidden sm:block">
-            <h4 className="text-[10px] font-black uppercase tracking-widest text-foreground italic">Comparison Engine</h4>
-            <p className="text-[11px] font-bold text-muted-foreground">
-              {comparisonList.length} of 4 vehicles selected
-            </p>
+          <div className="flex-1 hidden sm:block">
+            <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground leading-none mb-1">
+              Comparison Engine
+            </h4>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-foreground">
+                {comparisonList.length} Units
+              </span>
+              <span className="h-1 w-1 rounded-full bg-primary animate-pulse-dot" />
+            </div>
           </div>
 
-          <div className="flex items-center gap-2 pr-1">
-            <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-11 w-11 rounded-full text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
-                onClick={clearComparison}
+          <div className="flex items-center gap-1 pr-1">
+            <button 
+              onClick={clearComparison}
+              className="h-9 w-9 flex items-center justify-center rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+              title="Clear all"
             >
-              <Trash2 size={18} />
-            </Button>
-            
-            <Button 
+              <Trash2 size={16} />
+            </button>
+            <button 
               onClick={() => setIsOpen(true)}
-              className="h-11 rounded-full bg-foreground px-6 text-xs font-black text-background shadow-2xl hover:scale-[1.02] transition-transform active:scale-95 flex items-center gap-2 border-none"
+              className="h-10 px-5 rounded-2xl bg-primary text-white text-xs font-semibold shadow-blue hover:bg-primary/90 active:scale-95 transition-all flex items-center gap-2"
             >
-              COMPARE NOW <ArrowRightLeft size={16} />
-            </Button>
+              Compare <ArrowRightLeft size={14} />
+            </button>
           </div>
         </div>
       </div>
