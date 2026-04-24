@@ -106,13 +106,7 @@ export function SaveSearchModal(): React.ReactElement {
       });
       const data: unknown = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const err =
-          typeof data === "object" &&
-          data &&
-          "error" in data &&
-          typeof (data as { error: unknown }).error === "string"
-            ? (data as { error: string }).error
-            : "Could not save alert";
+        const err = (data as any)?.error || "Could not save alert";
         toast({
           variant: "destructive",
           title: "Error",
