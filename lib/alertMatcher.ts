@@ -103,9 +103,9 @@ export async function findMatchingSubscriptions(listing: Listing): Promise<Subsc
   };
 
   // Accident Filter
-  if (listing.accidents === true) {
+  if (listing.accidents === true && Array.isArray(where.AND)) {
     // If car HAS accidents, user MUST NOT have noAccidents: true
-    where.AND!.push({
+    where.AND.push({
       OR: [
         { noAccidents: null },
         { noAccidents: false }
@@ -114,8 +114,8 @@ export async function findMatchingSubscriptions(listing: Listing): Promise<Subsc
   }
 
   // Owners Filter
-  if (listing.owners && listing.owners > 0) {
-    where.AND!.push({
+  if (listing.owners && listing.owners > 0 && Array.isArray(where.AND)) {
+    where.AND.push({
       OR: [
         { maxOwners: null },
         { maxOwners: { gte: listing.owners } }
