@@ -142,16 +142,16 @@ export function SaveSearchModal(): React.ReactElement {
 
   return (
     <Dialog open={alertOpen} onOpenChange={setAlertOpen}>
-      <DialogContent className="sm:max-w-md bg-background border border-primary/20 rounded-[2rem] p-8 shadow-[0_0_50px_rgba(0,216,255,0.05)] dark:shadow-[0_0_50px_rgba(0,216,255,0.15)] overflow-hidden">
+      <DialogContent className="sm:max-w-md bg-background border border-white/10 rounded-[2rem] p-8 shadow-[0_40px_100px_rgba(0,0,0,0.8)] overflow-hidden">
         
         {/* Glow */}
-        <div className="absolute top-0 right-0 -mr-16 -mt-16 h-40 w-40 rounded-full bg-primary/10 blur-[50px] pointer-events-none" />
+        <div className="absolute top-0 right-0 -mr-16 -mt-16 h-40 w-40 rounded-full bg-white/[0.03] blur-[50px] pointer-events-none" />
 
         <DialogHeader className="mb-4 relative z-10">
-          <DialogTitle className="text-3xl font-black tracking-tight text-foreground font-display">
+          <DialogTitle className="text-3xl font-black tracking-tight text-white font-display uppercase italic">
              {step === 1 ? "Sentinel Target Config" : "Uplink Target"}
           </DialogTitle>
-          <DialogDescription className="text-muted-foreground mt-2 font-medium">
+          <DialogDescription className="text-white/40 mt-2 font-medium uppercase text-[10px] tracking-widest">
              {step === 1 
                ? "Define the vehicle criteria our scanners should hunt for." 
                : "Enter your email. We'll ping you the second a matching vehicle enters our national database."}
@@ -164,34 +164,34 @@ export function SaveSearchModal(): React.ReactElement {
              <div className="space-y-4 animate-in fade-in zoom-in-95 duration-300">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Make</Label>
-                    <Input value={make} onChange={e => setMake(e.target.value)} placeholder="e.g. BMW" className="h-10 text-xs rounded-xl bg-muted/20 border-white/5 focus-visible:ring-primary" />
+                    <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30">Make</Label>
+                    <Input value={make} onChange={e => setMake(e.target.value)} placeholder="E.G. BMW" className="h-10 text-[10px] font-black uppercase tracking-widest rounded-xl bg-white/[0.02] border-white/5 focus-visible:ring-white/20" />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Model</Label>
-                    <Input value={model} onChange={e => setModel(e.target.value)} placeholder="e.g. M3" className="h-10 text-xs rounded-xl bg-muted/20 border-white/5 focus-visible:ring-primary" />
+                    <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30">Model</Label>
+                    <Input value={model} onChange={e => setModel(e.target.value)} placeholder="E.G. M3" className="h-10 text-[10px] font-black uppercase tracking-widest rounded-xl bg-white/[0.02] border-white/5 focus-visible:ring-white/20" />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Min Price ($)</Label>
-                    <Input value={priceMin} onChange={e => setPriceMin(e.target.value)} type="number" placeholder="5,000" className="h-10 text-xs rounded-xl bg-muted/20 border-white/5 focus-visible:ring-primary" />
+                    <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30">Min Price ($)</Label>
+                    <Input value={priceMin} onChange={e => setPriceMin(e.target.value)} type="number" placeholder="5000" className="h-10 text-[10px] font-black uppercase tracking-widest rounded-xl bg-white/[0.02] border-white/5 focus-visible:ring-white/20" />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Max Price ($)</Label>
-                    <Input value={priceMax} onChange={e => setPriceMax(e.target.value)} type="number" placeholder="50,000" className="h-10 text-xs rounded-xl bg-muted/20 border-white/5 focus-visible:ring-primary" />
+                    <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30">Max Price ($)</Label>
+                    <Input value={priceMax} onChange={e => setPriceMax(e.target.value)} type="number" placeholder="50000" className="h-10 text-[10px] font-black uppercase tracking-widest rounded-xl bg-white/[0.02] border-white/5 focus-visible:ring-white/20" />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Hunt Keywords</Label>
-                  <Input value={keywords} onChange={e => setKeywords(e.target.value)} placeholder="e.g. 'clean title', 'one owner', 'manual'" className="h-10 text-xs rounded-xl bg-muted/20 border-white/5 focus-visible:ring-primary" />
+                  <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30">Hunt Keywords</Label>
+                  <Input value={keywords} onChange={e => setKeywords(e.target.value)} placeholder="E.G. 'CLEAN TITLE', 'MANUAL'" className="h-10 text-[10px] font-black uppercase tracking-widest rounded-xl bg-white/[0.02] border-white/5 focus-visible:ring-white/20" />
                 </div>
                 
                 <Button
                   onClick={() => setStep(2)}
-                  className="w-full h-14 rounded-full bg-primary text-primary-foreground font-black uppercase tracking-widest shadow-[0_0_20px_rgba(0,216,255,0.4)] transition-transform hover:scale-[1.02] active:scale-95"
+                  className="w-full h-14 rounded-full bg-white text-black font-black uppercase tracking-widest shadow-2xl transition-transform hover:scale-[1.02] active:scale-95"
                 >
                   Confirm Parameters
                 </Button>
@@ -199,7 +199,7 @@ export function SaveSearchModal(): React.ReactElement {
           ) : (
              <form className="space-y-6 animate-in slide-in-from-right-4 duration-300" onSubmit={onSave}>
                 <div className="space-y-3">
-                  <Label htmlFor="alert-email" className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                  <Label htmlFor="alert-email" className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30">
                     Transmission Email Address
                   </Label>
                   <Input
@@ -208,8 +208,8 @@ export function SaveSearchModal(): React.ReactElement {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="pilot@example.com"
-                    className="glass-input h-12 rounded-xl text-foreground placeholder:text-muted-foreground/50 focus-visible:ring-primary"
+                    placeholder="PILOT@EXAMPLE.COM"
+                    className="h-12 rounded-xl bg-white/[0.03] border-white/5 text-white text-[11px] font-black uppercase tracking-widest placeholder:text-white/10 focus-visible:ring-white/20"
                     autoComplete="email"
                   />
                 </div>
@@ -219,14 +219,14 @@ export function SaveSearchModal(): React.ReactElement {
                      type="button"
                      onClick={() => setStep(1)}
                      variant="ghost"
-                     className="h-14 w-20 rounded-2xl flex-shrink-0 text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5"
+                     className="h-14 w-20 rounded-2xl flex-shrink-0 text-white/20 hover:text-white hover:bg-white/5 border border-white/10"
                    >
                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
                    </Button>
                    <Button
                      type="submit"
                      disabled={loading}
-                     className="w-full h-14 rounded-2xl bg-primary text-primary-foreground font-black uppercase tracking-widest shadow-[0_0_20px_rgba(0,216,255,0.4)] transition-transform hover:scale-[1.02] active:scale-95"
+                     className="w-full h-14 rounded-2xl bg-white text-black font-black uppercase tracking-widest shadow-2xl transition-transform hover:scale-[1.02] active:scale-95"
                    >
                      {loading ? "INITIALIZING..." : "INITIATE PROTOCOL"}
                    </Button>
