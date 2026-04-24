@@ -124,11 +124,14 @@ export function StructuredSearchBar() {
             <div className="md:hidden h-px bg-white/5 mx-5" />
 
             {makeOpen && (
-                <div className="absolute top-[calc(100%+12px)] left-0 right-[-200px] z-[100] bg-background/95 backdrop-blur-3xl border border-foreground/10 rounded-[2rem] shadow-[0_32px_64px_rgba(0,0,0,0.5)] max-h-[450px] overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-4 duration-300">
-                    <div className="p-6 border-b border-foreground/5 bg-foreground/[0.02]">
+                <div className="fixed md:absolute inset-x-4 md:inset-x-auto top-[20%] md:top-[calc(100%+12px)] md:left-0 md:right-[-200px] z-[100] bg-background/95 backdrop-blur-3xl border border-foreground/10 rounded-[2rem] shadow-[0_32px_64px_rgba(0,0,0,0.8)] max-h-[60vh] md:max-h-[450px] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 md:slide-in-from-top-4 duration-300">
+                    <div className="p-6 border-b border-foreground/5 bg-foreground/[0.02] flex items-center justify-between">
                         <span className="text-[10px] font-black uppercase tracking-[0.4em] text-muted-foreground">Select Operational Unit</span>
+                        <button onClick={() => setMakeOpen(false)} className="md:hidden p-2 hover:bg-foreground/5 rounded-full">
+                            <X size={16} />
+                        </button>
                     </div>
-                    <div className="p-2 overflow-y-auto custom-scrollbar grid grid-cols-2 gap-1">
+                    <div className="p-2 overflow-y-auto custom-scrollbar grid grid-cols-1 sm:grid-cols-2 gap-1">
                         <button
                             type="button"
                             className="w-full text-left px-5 py-4 hover:bg-foreground/5 rounded-2xl transition-all font-black text-[11px] uppercase tracking-widest text-muted-foreground hover:text-foreground border border-transparent hover:border-foreground/10"
@@ -187,14 +190,19 @@ export function StructuredSearchBar() {
             <div className="md:hidden h-px bg-white/5 mx-5" />
 
             {modelSuggestionsOpen && make && filteredModels.length > 0 && (
-                 <div className="absolute top-[calc(100%+12px)] left-0 right-0 z-50 glass border border-white/10 rounded-3xl shadow-2xl max-h-[350px] overflow-y-auto animate-in fade-in slide-in-from-top-4">
-                    <div className="p-2 space-y-1">
-                        <div className="px-5 py-3 text-[9px] font-black text-primary uppercase tracking-[0.3em] bg-white/5 rounded-2xl mb-2">Common Varieties</div>
+                 <div className="fixed md:absolute inset-x-4 md:inset-x-auto top-[20%] md:top-[calc(100%+12px)] md:left-0 md:right-0 z-[100] bg-background/95 backdrop-blur-3xl border border-foreground/10 rounded-[2rem] shadow-[0_32px_64px_rgba(0,0,0,0.8)] max-h-[60vh] md:max-h-[350px] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 md:slide-in-from-top-4 duration-300">
+                    <div className="p-6 border-b border-foreground/5 bg-foreground/[0.02] flex items-center justify-between">
+                        <span className="text-[10px] font-black uppercase tracking-[0.4em] text-primary">Common Varieties</span>
+                        <button onClick={() => setModelSuggestionsOpen(false)} className="md:hidden p-2 hover:bg-foreground/5 rounded-full">
+                            <X size={16} />
+                        </button>
+                    </div>
+                    <div className="p-2 overflow-y-auto custom-scrollbar space-y-1">
                         {filteredModels.map(m => (
                             <button
                                 key={m}
                                 type="button"
-                                className="w-full text-left px-5 py-3.5 hover:bg-white/5 rounded-2xl transition-all font-black text-[11px] uppercase tracking-widest text-white/60 hover:text-white"
+                                className="w-full text-left px-5 py-3.5 hover:bg-foreground/5 rounded-2xl transition-all font-black text-[11px] uppercase tracking-widest text-muted-foreground hover:text-foreground border border-transparent hover:border-foreground/10"
                                 onClick={() => {
                                     setModel(m);
                                     setModelSuggestionsOpen(false);
@@ -235,11 +243,14 @@ export function StructuredSearchBar() {
             </div>
 
             {cityOpen && (
-                <div className="absolute top-[calc(100%+12px)] left-[-200px] right-0 z-[100] bg-background/95 backdrop-blur-3xl border border-foreground/10 rounded-[2rem] shadow-[0_32px_64px_rgba(0,0,0,0.5)] max-h-[450px] overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-4 duration-300">
-                    <div className="p-6 border-b border-foreground/5 bg-foreground/[0.02]">
+                <div className="fixed md:absolute inset-x-4 md:inset-x-auto top-[20%] md:top-[calc(100%+12px)] md:left-[-200px] md:right-0 z-[100] bg-background/95 backdrop-blur-3xl border border-foreground/10 rounded-[2rem] shadow-[0_32px_64px_rgba(0,0,0,0.8)] max-h-[60vh] md:max-h-[450px] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 md:slide-in-from-top-4 duration-300">
+                    <div className="p-6 border-b border-foreground/5 bg-foreground/[0.02] flex items-center justify-between">
                         <span className="text-[10px] font-black uppercase tracking-[0.4em] text-muted-foreground">Select Deployment Sector</span>
+                        <button onClick={() => setCityOpen(false)} className="md:hidden p-2 hover:bg-foreground/5 rounded-full">
+                            <X size={16} />
+                        </button>
                     </div>
-                    <div className="p-2 overflow-y-auto custom-scrollbar grid grid-cols-2 gap-1">
+                    <div className="p-2 overflow-y-auto custom-scrollbar grid grid-cols-1 sm:grid-cols-2 gap-1">
                         <button
                             type="button"
                             className="w-full text-left px-5 py-4 hover:bg-foreground/5 rounded-2xl transition-all font-black text-[11px] uppercase tracking-widest text-muted-foreground hover:text-foreground border border-transparent hover:border-foreground/10"
