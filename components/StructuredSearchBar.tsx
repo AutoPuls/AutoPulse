@@ -91,7 +91,7 @@ export function StructuredSearchBar() {
     <div className="w-full max-w-5xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <form 
         onSubmit={handleSearch}
-        className="relative flex flex-col md:flex-row items-stretch gap-0 bg-white/[0.03] backdrop-blur-3xl border border-white/10 rounded-[2rem] sm:rounded-full overflow-hidden shadow-2xl p-1.5 md:p-2 group hover:border-white/20 transition-all"
+        className="relative flex flex-col md:flex-row items-stretch gap-0 bg-white/[0.03] backdrop-blur-3xl border border-white/10 rounded-[2rem] sm:rounded-full overflow-visible shadow-2xl p-1.5 md:p-2 group hover:border-white/20 transition-all"
       >
         {/* Make Column */}
         <div className="relative flex-1" ref={makeRef}>
@@ -222,6 +222,7 @@ export function StructuredSearchBar() {
                         <X size={14} />
                     </button>
                 )}
+                <ChevronDown size={14} className={cn("ml-2 text-white/20 transition-transform duration-300", cityOpen && "rotate-180")} />
             </div>
 
             {cityOpen && (
