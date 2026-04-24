@@ -8,10 +8,11 @@ export async function findMatchingSubscriptions(listing: Listing): Promise<Subsc
   const { prisma } = await import("./db");
 
   // --- GLOBAL MOTORCYCLE/JUNK FILTER ---
-  const blockRegex = /\b(motorcycle|scooter|moped|dirt bike|atv|utv|harley|yamaha|ninja|tao|grom|ducati|kawasaki|vespa|polaris|can-am|sea-doo|ski-doo|snowmobile|rv|camper|trailer|boat|jet ski)\b/i;
+  const blockRegex = /\b(motorcycle|motercycle|scooter|moped|dirt bike|atv|utv|harley|yamaha|kawasaki|ducati|ninja|polaris|can-am|sea-doo|ski-doo|snowmobile|rv|camper|trailer|tráiler|boat|jet ski|bicycle|bycycle|tractor|mower|coachmen|jayco|winnebago|keystone|equipment)\b/i;
   const titleText = (listing.rawTitle || "").toLowerCase();
+  const descText = (listing.description || "").toLowerCase();
   
-  if (blockRegex.test(titleText)) {
+  if (blockRegex.test(titleText) || blockRegex.test(descText)) {
     console.log(`[alertMatcher] Blocking notification for non-car vehicle: ${listing.rawTitle}`);
     return [];
   }
@@ -66,9 +67,61 @@ export async function findMatchingSubscriptions(listing: Listing): Promise<Subsc
           { city: null },
           { city: { equals: listing.city ?? '', mode: 'insensitive' } },
         ]
+      },
+      // === NEW ADVANCED FILTERS ===
+      {
+        OR: [
+          { transmission: null },
+          { transmission: { equals: listing.transmission ?? '___UNKNOWN___', mode: 'insensitive' } }
+        ]
+      },
+      {
+        OR: [
+          { bodyStyle: null },
+          { bodyStyle: { equals: listing.bodyStyle ?? '___UNKNOWN___', mode: 'insensitive' } }
+        ]
+      },
+      {
+        OR: [
+          { driveType: null },
+          { driveType: { equals: listing.driveType ?? '___UNKNOWN___', mode: 'insensitive' } }
+        ]
+      },
+      {
+        OR: [
+          { titleStatus: null },
+          { titleStatus: { equals: listing.titleStatus ?? '___UNKNOWN___', mode: 'insensitive' } }
+        ]
+      },
+      {
+        OR: [
+          { fuelType: null },
+          { fuelType: { equals: listing.fuelType ?? '___UNKNOWN___', mode: 'insensitive' } }
+        ]
       }
     ]
   };
+
+  // Accident Filter
+  if (listing.accidents === true) {
+    // If car HAS accidents, user MUST NOT have noAccidents: true
+    where.AND!.push({
+      OR: [
+        { noAccidents: null },
+        { noAccidents: false }
+      ]
+    });
+  }
+
+  // Owners Filter
+  if (listing.owners && listing.owners > 0) {
+    where.AND!.push({
+      OR: [
+        { maxOwners: null },
+        { maxOwners: { gte: listing.owners } }
+      ]
+    });
+  }
 
   return await prisma.subscription.findMany({ where });
 }
@@ -91,7 +144,11 @@ export async function matchListingToSubscriptions(listing: Listing) {
       city: listing.city,
       state: listing.state,
       imageUrls: listing.imageUrls,
-      listingUrl: listing.listingUrl
+      listingUrl: listing.listingUrl,
+      // Add extra details for the email template
+      trim: listing.trim || undefined,
+      transmission: listing.transmission || undefined,
+      condition: listing.condition || undefined
     };
 
     for (const sub of matches) {
@@ -117,7 +174,7 @@ export async function matchListingToSubscriptions(listing: Listing) {
           html
         });
         
-        console.log(`[alertMatcher] Sent alert to ${sub.email} for ${listing.make} ${listing.model}`);
+        console.log(`[alertMatcher] Sent alert to ${sub.email} for ${listing.year} ${listing.make} ${listing.model}`);
       } catch (err) {
         console.error(`[alertMatcher] Failed to send email to ${sub.email}:`, err);
       }
@@ -126,3 +183,4 @@ export async function matchListingToSubscriptions(listing: Listing) {
     console.error(`[alertMatcher] Processing error:`, err);
   }
 }
+

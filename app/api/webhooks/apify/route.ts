@@ -1,26 +1,10 @@
 import { NextResponse } from 'next/server';
+import { parseListingText, isJunkTitle } from '@/lib/parser/listingParser';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   return NextResponse.json({ status: "Apify Webhook Endpoint Active" });
-}
-
-function parseYear(title: string, description: string) {
-  const text = (title + " " + description).substring(0, 100);
-  const match = text.match(/\b(19|20)\d{2}\b/);
-  return match ? parseInt(match[0]) : 0;
-}
-
-function parseMileageFromText(text: string) {
-  if (!text) return null;
-  const match = text.match(/(\d{1,3}(?:,\d{3})*|\d+)\s*(?:k|thousand)?\s*miles/i);
-  if (match) {
-    let num = parseInt(match[1].replace(/,/g, ''));
-    if (match[0].toLowerCase().includes('k')) num *= 1000;
-    return num;
-  }
-  return null;
 }
 
 export async function POST(req: Request) {
@@ -42,51 +26,77 @@ export async function POST(req: Request) {
     let count = 0;
     for (const item of items) {
       try {
-        const description = item.redacted_description?.text || '';
-        const title = item.marketplace_listing_title || item.custom_title || '';
-        const externalId = item.id || item.url?.match(/item\/(\d+)/)?.[1] || Math.random().toString();
+        const description = item.description || item.redacted_description?.text || '';
+        const title = item.marketplace_listing_title || item.custom_title || item.title || '';
         
-        // Construct clean FB marketplace URL
+        // 1. Junk Filter
+        if (isJunkTitle(title, description)) {
+          console.log(`[webhook] Skipping junk title: ${title}`);
+          continue;
+        }
+
+        const parsed = parseListingText(title, description);
+        if (parsed.isJunk) {
+          console.log(`[webhook] Skipping junk listing (parsed): ${title}`);
+          continue;
+        }
+
+        // 2. ID and URL construction
+        const externalId = item.id || item.url?.match(/item\/(\d+)/)?.[1] || Math.random().toString();
         const listingUrl = externalId.match(/^\d+$/) 
           ? `https://www.facebook.com/marketplace/item/${externalId}/`
           : item.url || '';
 
-        const year = item.vehicle_year || parseYear(title, description);
-        const make = item.vehicle_make_display_name || 'Unknown';
-        const model = item.vehicle_model_display_name || 'Unknown';
-        
+        // 3. Price construction (Cents)
         const priceCents = item.listing_price?.amount 
           ? Math.round(parseFloat(item.listing_price.amount) * 100) 
-          : 0;
+          : (item.price ? Math.round(parseFloat(item.price) * 100) : 0);
 
-        let mileage = item.vehicle_odometer_data?.value || parseMileageFromText(description);
-        if (!mileage && item.custom_sub_titles_with_rendering_flags) {
-          const sub = item.custom_sub_titles_with_rendering_flags[0]?.subtitle || '';
-          mileage = parseMileageFromText(sub);
-        }
-
+        // 4. Image collection
         let images = [];
         if (item.primary_listing_photo_url) images.push(item.primary_listing_photo_url);
         if (item.listing_photos && Array.isArray(item.listing_photos)) {
-          const moreImages = item.listing_photos.map((p: any) => p.image?.uri).filter(Boolean);
+          const moreImages = item.listing_photos.map((p: any) => p.image?.uri || p.url).filter(Boolean);
+          images = [...new Set([...images, ...moreImages])];
+        } else if (item.images && Array.isArray(item.images)) {
+          const moreImages = item.images.map((img: any) => typeof img === 'string' ? img : img.url).filter(Boolean);
           images = [...new Set([...images, ...moreImages])];
         }
 
+        // 5. Merge Parser Results with Scraper Metadata
         const listingData = {
           externalId: externalId,
           source: 'facebook',
           rawTitle: title,
-          make: make,
-          model: model,
-          year: year,
-          price: priceCents,
-          mileage: mileage,
-          city: item.location_text?.text?.split(',')[0]?.trim() || null,
-          state: item.location_text?.text?.split(',')[1]?.trim() || null,
-          imageUrls: images,
-          listingUrl: listingUrl,
           description: description,
+          listingUrl: listingUrl,
+          price: priceCents,
+          imageUrls: images,
+          city: item.location_text?.text?.split(',')[0]?.trim() || item.city || null,
+          state: item.location_text?.text?.split(',')[1]?.trim() || item.state || null,
           postedAt: item.creation_time ? new Date(item.creation_time * 1000) : new Date(),
+          
+          // Use parser for core attributes
+          make: parsed.make,
+          model: parsed.model,
+          year: parsed.year,
+          mileage: parsed.mileage,
+          trim: parsed.trim,
+          bodyStyle: parsed.bodyStyle,
+          driveType: parsed.driveType,
+          engine: parsed.engine,
+          transmission: parsed.transmission,
+          fuelType: parsed.fuelType,
+          color: parsed.color,
+          doors: parsed.doors,
+          titleStatus: parsed.titleStatus,
+          condition: parsed.condition,
+          accidents: parsed.accidents,
+          owners: parsed.owners,
+          features: parsed.features,
+          vin: parsed.vin,
+          parseScore: parsed.parseScore,
+          parsedAt: new Date(),
         };
 
         const listing = await prisma.listing.upsert({
@@ -97,7 +107,10 @@ export async function POST(req: Request) {
 
         if (listing) {
           count++;
-          matchListingToSubscriptions(listing).catch(() => {});
+          // Trigger alert matcher
+          matchListingToSubscriptions(listing).catch((err) => {
+            console.error(`[webhook] Alert error for ${listing.id}:`, err);
+          });
         }
       } catch (err) {
         console.error(`[webhook] Item error:`, err);
@@ -106,6 +119,8 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true, processed: count });
   } catch (error: any) {
+    console.error(`[webhook] Critical error:`, error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+

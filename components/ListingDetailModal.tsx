@@ -143,12 +143,13 @@ export function ListingDetailModal({
     isRefreshing
   ]);
 
-  const hasParsedName = listing.make !== "Unknown" && listing.model !== "Unknown";
-  const title = hasParsedName
-    ? listing.year > 0
-      ? `${listing.year} ${listing.make} ${listing.model}`
-      : `${listing.make} ${listing.model}`
-    : (listing.rawTitle?.trim() || "Marketplace Listing");
+  const hasParsedMake = listing.make !== "Unknown";
+  const hasParsedModel = listing.model !== "Unknown";
+  const isGeneric = (listing.rawTitle || "").toLowerCase().includes("marketplace listing");
+  
+  const title = (hasParsedMake || listing.year > 0)
+    ? `${listing.year > 0 ? listing.year + ' ' : ''}${hasParsedMake ? listing.make : 'Vehicle'}${hasParsedModel ? ' ' + listing.model : ''}`
+    : (isGeneric ? "Vehicle Intelligence Report" : (listing.rawTitle?.trim() || "Automotive Entry"));
 
   const loc = [listing.city, listing.state].filter(Boolean).join(", ");
   const mileage = listing.mileage != null ? `${listing.mileage.toLocaleString()} mi` : "N/A";
@@ -162,6 +163,8 @@ export function ListingDetailModal({
     { label: "Engine", value: listing.engine, icon: Zap },
     { label: "Body Style", value: listing.bodyStyle, icon: Car },
     { label: "Trim", value: listing.trim, icon: CheckCircle2 },
+    { label: "VIN", value: listing.vin, icon: ShieldCheck },
+    { label: "Interior", value: listing.features?.find((f: string) => f.includes('interior'))?.replace(' interior', ''), icon: Palette },
     { label: "Color", value: listing.color, icon: Palette },
     { label: "Owners", value: listing.owners ? `${listing.owners} owner${listing.owners > 1 ? 's' : ''}` : null, icon: User },
     { label: "Accidents", value: listing.accidents === false ? "Accident Free" : listing.accidents === true ? "Reported" : null, icon: AlertTriangle },
@@ -338,14 +341,16 @@ export function ListingDetailModal({
                   isRefreshing ? "opacity-30 blur-sm scale-[0.98]" : "opacity-100"
                 )}>
                   <div className={cn(
-                    "leading-relaxed text-foreground/70 text-[15px] font-medium whitespace-pre-wrap transition-all duration-700"
+                    "leading-relaxed text-foreground/70 text-[15px] font-medium whitespace-pre-wrap transition-all duration-700",
+                    !isExpanded && "line-clamp-3 overflow-hidden"
                   )}>
                     {(() => {
                       const desc = (listing.rawDescription || listing.description || "");
                       if (desc.toLowerCase().includes("connectez-vous") || desc.toLowerCase().includes("log in to")) {
                           return "Detailed telemetry pending (Login Wall detected). Deep scan initiated...";
                       }
-                      return desc.replace(/AutoPulse (local capture|v8 captured):\s*/i, "").trim() || "Detailed telemetry pending.";
+                      const cleanDesc = desc.replace(/AutoPulse (local capture|v8 captured):\s*/i, "").trim();
+                      return cleanDesc || "Detailed telemetry pending.";
                     })()}
                   </div>
                   

@@ -27,6 +27,7 @@ export interface ParsedListing {
   // Meta
   parseScore: number;
   isJunk: boolean;
+  vin: string | null;
 }
 
 import { MAKES, MAKE_NORMALIZATION, MODEL_MAP, MODEL_DISPLAY_NAMES } from "../constants";
@@ -62,22 +63,41 @@ function capitalize(s: string): string {
  * Robust junk title detection for Facebook Marketplace.
  * Catches category nav nodes, placeholders, and generic listings.
  */
-export function isJunkTitle(title: string): boolean {
-  const low = title.toLowerCase().trim();
-  const junkPatterns = [
-    "marketplace listing", "explore", "advanced filters enabled",
-    "voitures", "bateaux", "bateau", "motos", "moto", "camions", "camion",
-    "caravanes", "caravane", "camping-cars", "camping-car",
-    "sports mécaniques", "sport mécanique",
-    "powersports", "rv", "campers", "boats", "trailers",
-    "vehicles", "cars", "trucks", "annonces", "autos", "carros", "venta"
+export function isJunkTitle(title: string, description: string = ""): boolean {
+  const low = (title + " " + (description || "")).toLowerCase().trim();
+  
+  // 1. Generic Placeholders & Category Nav Keywords
+  const navPatterns = [
+    "explore", "advanced filters enabled", "annonces de marketplace", "voitures", "autos", 
+    "carros", "véhicules", "vehicles", "cars", "trucks", "annonces", "venta", "generic listing"
   ];
   
-  // Exact or contains "marketplace listing"
-  if (low.includes("marketplace listing")) return true;
+  if (navPatterns.some(p => low.includes(p))) return true;
   
-  // Full match for category nav nodes
-  return junkPatterns.some(p => low === p);
+  // Marketplace Listing is only junk if description is also empty or junk
+  if (low === "marketplace listing" && description.length < 20) return true;
+
+  // 2. Non-Car Vehicle Keywords (Aggressive)
+  const nonCarKeywords = [
+    // Two-wheelers
+    "motorcycle", "motercycle", "moto", "scooter", "moped", "dirt bike", "pit bike", "ebike", "bicycle", "bycycle", "bike",
+    "kawasaki", "yamaha", "harley", "davidson", "ducati", "triumph", "vespa", "grom", "hayabusa", "ninja",
+    "\\bcbr\\b", "\\bgsxr\\b", "\\b250r\\b", "\\b600r\\b", "\\b1000r\\b", "\\d+cc\\b",
+
+    // Off-road & Marine
+    "atv", "utv", "quad", "four wheeler", "polaris", "can-am", "can am", "rzr", "maverick", "talon",
+    "boat", "vessel", "yacht", "sea-doo", "seadoo", "jet ski", "jetski", "pontoon", "outboard",
+
+    // RVs & Trailers
+    "rv", "camper", "travel trailer", "fifth wheel", "motorhome", "winnebago", "coachmen", "jayco", "forest river", "keystone",
+    "trailer", "tráiler", "utility", "cargo", "dump trailer", "flatbed", "car hauler", "enclosed",
+
+    // Industrial/Garden
+    "tractor", "mower", "zero turn", "kubota", "john deere", "bobcat", "skid steer", "equipment", 
+    "parts only", "parting out", "shell only", "frame only", "wtb", "wtt", "looking for"
+  ];
+
+  return nonCarKeywords.some(k => new RegExp(`\\b${k}\\b`, "i").test(low));
 }
 
 /**
@@ -214,22 +234,52 @@ export function parseListingText(title: string, description: string = ""): Parse
       driveType = (dt === '4X4' ? '4WD' : (dt ?? null));
   }
 
-  // 8. ENGINE
+  // 8. ENGINE & CYLINDERS
   let engine: string | null = null;
-  const engMatch = fullText.match(/\b(v\d|l\d|inline\s*\d|\d\.\d\s*l|turbo|hybrid|diesel)\b/i);
-  if (engMatch) engine = engMatch[0].toUpperCase();
+  const engSizeMatch = fullText.match(/\b(\d\.\d)\s*(?:l|liter|litros)\b/i);
+  const engCylMatch = fullText.match(/\b(v[468]|inline\s*[46]|l[46]|v1[02]|\d\s*cylinder|cyl)\b/i);
+  
+  if (engSizeMatch && engCylMatch) engine = `${engSizeMatch[1]}L ${engCylMatch[0].toUpperCase()}`;
+  else if (engSizeMatch) engine = `${engSizeMatch[1]}L Engine`;
+  else if (engCylMatch) engine = engCylMatch[0].toUpperCase();
+  else if (/\b(turbo|hybrid|diesel|electric)\b/i.test(fullText)) {
+      engine = fullText.match(/\b(turbo|hybrid|diesel|electric)\b/i)?.[0].toUpperCase() || null;
+  }
 
   // 9. FUEL TYPE
   let fuelType: string | null = "gasoline";
-  if (make === "Tesla" || /\b(electric|ev|bev)\b/i.test(fullText)) fuelType = "electric";
-  else if (/\b(hybrid|phev|hybrid synergestic)\b/i.test(fullText)) fuelType = "hybrid";
-  else if (/\b(diesel|tdi|duramax|powerstroke|cummins)\b/i.test(fullText)) fuelType = "diesel";
+  if (make === "Tesla" || /\b(electric|ev|bev|tesla)\b/i.test(fullText)) fuelType = "electric";
+  else if (/\b(hybrid|phev|plug-in)\b/i.test(fullText)) fuelType = "hybrid";
+  else if (/\b(diesel|duramax|powerstroke|cummins|tdi)\b/i.test(fullText)) fuelType = "diesel";
+
+  // 9.1 INTERIOR (New)
+  let interior: string | null = null;
+  if (/\b(leather|cuir|piel)\b/i.test(fullText)) interior = "leather";
+  else if (/\b(cloth|fabric|tissu)\b/i.test(fullText)) interior = "cloth";
+  else if (/\b(suede|alcantara)\b/i.test(fullText)) interior = "suede";
+
+  // 9.2 VIN (New)
+  let vin: string | null = null;
+  const vinMatch = fullText.match(/\b([A-HJ-NPR-Z0-9]{17})\b/i);
+  if (vinMatch) vin = vinMatch[1].toUpperCase();
 
   // 10. BODY STYLE
   let bodyStyle: string | null = null;
-  if (/\b(sedan|cupe|coupe|suv|truck|pickup|van|minivan|hatchback|convertible|wagon)\b/i.test(fullText)) {
-      const bs = fullText.match(/\b(sedan|coupe|suv|truck|van|hatchback|convertible|wagon)\b/i)?.[0].toLowerCase();
-      bodyStyle = bs ?? null;
+  const bsPatterns = [
+      { key: "sedan", regex: /\b(sedan|berline)\b/i },
+      { key: "suv", regex: /\b(suv|crossover|4x4)\b/i },
+      { key: "truck", regex: /\b(truck|pickup|f150|silverado|ram|camion)\b/i },
+      { key: "coupe", regex: /\b(coupe|cupe)\b/i },
+      { key: "van", regex: /\b(van|minivan)\b/i },
+      { key: "hatchback", regex: /\b(hatchback|hatch)\b/i },
+      { key: "convertible", regex: /\b(convertible|cabriolet|soft top)\b/i },
+      { key: "wagon", regex: /\b(wagon|estate|touring)\b/i }
+  ];
+  for (const p of bsPatterns) {
+    if (p.regex.test(fullText)) {
+        bodyStyle = p.key;
+        break;
+    }
   }
 
   // 11. COLOR
@@ -244,15 +294,17 @@ export function parseListingText(title: string, description: string = ""): Parse
   // 12. TITLE STATUS
   let titleStatus: string | null = null;
   if (/\b(clean|clear)\s*title\b/i.test(fullText)) titleStatus = "clean";
-  else if (/\b(salvage|rebuilt|rebuilt\s*title|lemon|reconstruction)\b/i.test(fullText)) titleStatus = "salvage";
+  else if (/\b(salvage|rebuilt|lemon|reconstruction)\b/i.test(fullText)) titleStatus = "salvage";
 
   // 13. CONDITION & FEATURES
   const featuresSet = new Set<string>();
   for (const f of FEATURE_KEYWORDS) {
     if (new RegExp(`\\b${f}\\b`, "i").test(fullText)) featuresSet.add(f);
   }
+  if (interior) featuresSet.add(`${interior} interior`);
+  if (vin) featuresSet.add(`VIN: ${vin}`);
 
-  const isJunk = isJunkTitle(title);
+  const isJunk = isJunkTitle(title, description);
   
   return {
     make,
@@ -273,6 +325,7 @@ export function parseListingText(title: string, description: string = ""): Parse
     owners: (/\b(1\s*owner|one\s*owner)\b/i.test(fullText)) ? 1 : (/\b(2\s*owners|two\s*owners)\b/i.test(fullText)) ? 2 : null,
     features: Array.from(featuresSet),
     parseScore: Math.max(0, parseScore),
-    isJunk
+    isJunk,
+    vin
   };
 }

@@ -43,16 +43,17 @@ export const ListingCard = memo(function ListingCard({ listing }: { listing: any
   const hasParsedMake = listing.make !== "Unknown";
   const hasParsedModel = listing.model !== "Unknown";
 
-  const fallbackTitle =
-    (listing.rawTitle && listing.rawTitle.trim().length > 0
-      ? listing.rawTitle.trim()
-      : "Marketplace Listing");
-
-  let title = fallbackTitle;
-  if (hasParsedMake) {
-    const yearPrefix = listing.year > 0 ? `${listing.year} · ` : "";
-    const modelSuffix = hasParsedModel ? ` · ${listing.model}` : "";
-    title = `${yearPrefix}${listing.make}${modelSuffix}`;
+  const isGenericTitle = (listing.rawTitle || "").toLowerCase().includes("marketplace listing") || (listing.rawTitle || "").length < 2;
+  
+  let title = (listing.rawTitle?.trim() || "Automotive Entry");
+  
+  if (hasParsedMake || listing.year > 0) {
+    const yearPrefix = listing.year > 0 ? `${listing.year} ` : "";
+    const makePart = hasParsedMake ? listing.make : "Vehicle";
+    const modelSuffix = hasParsedModel ? ` ${listing.model}` : "";
+    title = `${yearPrefix}${makePart}${modelSuffix}`;
+  } else if (isGenericTitle) {
+    title = "Vehicle Record Scan";
   }
 
   const loc = [listing.city, listing.state].filter(Boolean).join(", ");
@@ -146,6 +147,11 @@ export const ListingCard = memo(function ListingCard({ listing }: { listing: any
             {listing.trim && (
                <span className="rounded-full bg-cyber-blue/10 border border-cyber-blue/20 px-3 py-1 text-[8px] font-black uppercase tracking-widest text-cyber-blue">
                  {listing.trim}
+               </span>
+            )}
+            {listing.parseScore > 80 && (
+               <span className="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 text-[8px] font-black uppercase tracking-widest text-emerald-400">
+                 Enhanced Data Parsing
                </span>
             )}
           </div>
