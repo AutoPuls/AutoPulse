@@ -175,10 +175,10 @@ export function ListingDetailModal({
       <DialogTrigger asChild>
         {children}
       </DialogTrigger>
-      <DialogContent className="max-w-[100vw] sm:max-w-[1000px] h-full sm:h-[650px] p-0 overflow-hidden border-none bg-background sm:bg-background/80 backdrop-blur-3xl shadow-2xl flex flex-col sm:flex-row rounded-none sm:rounded-[2.5rem]">
+      <DialogContent className="max-w-[100vw] sm:max-w-[1000px] h-[100dvh] sm:h-[650px] p-0 overflow-hidden border-none bg-background sm:bg-background/80 backdrop-blur-3xl shadow-2xl flex flex-col sm:flex-row rounded-none sm:rounded-[2.5rem]">
         
         {/* LEFT DECK: Sticky Media & Action Portal */}
-        <div className="w-full sm:w-[45%] h-[240px] sm:h-full relative bg-background shrink-0 group border-r border-foreground/5">
+        <div className="w-full sm:w-[45%] h-[280px] sm:h-full relative bg-background shrink-0 group border-b sm:border-b-0 sm:border-r border-foreground/5">
           <img 
             src={(listing.imageUrls && listing.imageUrls.length > 0) ? listing.imageUrls[0] : "/placeholder-car.svg"} 
             alt={title} 
@@ -228,8 +228,8 @@ export function ListingDetailModal({
         </div>
 
         {/* RIGHT DECK: Data Feed */}
-        <div className="flex-1 flex flex-col h-full min-w-0 bg-background/50 backdrop-blur-md">
-          <div className="flex-1 overflow-y-auto custom-scrollbar p-6 sm:p-12">
+        <div className="flex-1 flex flex-col min-h-0 min-w-0 bg-background/50 backdrop-blur-md overflow-hidden">
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-5 sm:p-12 touch-pan-y">
             
             {/* Header Content */}
             <header className="mb-8 sm:mb-10">
