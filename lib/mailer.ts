@@ -22,6 +22,9 @@ export type MailListing = {
   state: string | null;
   imageUrls: string[];
   listingUrl: string;
+  trim?: string;
+  transmission?: string;
+  condition?: string;
 };
 
 function formatUsdFromCents(cents: number): string {
