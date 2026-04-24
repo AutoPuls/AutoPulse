@@ -196,7 +196,7 @@ export function ListingDetailModal({
           {/* Persistent Price Area (Desktop) */}
           <div className="absolute bottom-10 left-10 right-10 z-20 hidden sm:block">
             <div className="mb-4">
-               <span className="text-[10px] font-black tracking-[0.4em] text-cyber-blue uppercase drop-shadow-lg">
+               <span className="text-[10px] font-black tracking-[0.4em] text-white/40 uppercase drop-shadow-lg">
                  Current Offering
                </span>
                <div className="text-5xl font-black tracking-tighter text-white drop-shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
@@ -204,7 +204,7 @@ export function ListingDetailModal({
                </div>
             </div>
             
-            <Button asChild className="w-full h-16 rounded-2xl bg-cyber-blue text-black font-black text-xs tracking-widest uppercase shadow-2xl shadow-cyan-500/30 hover:scale-[1.02] hover:bg-cyan-400 active:scale-95 transition-all border-none group/item">
+            <Button asChild className="w-full h-16 rounded-2xl bg-white text-black font-black text-xs tracking-widest uppercase shadow-2xl hover:scale-[1.02] hover:bg-white active:scale-95 transition-all border-none group/item">
               <a 
                 href={listing.listingUrl || `https://www.facebook.com/marketplace/item/${listing.externalId}/`} 
                 target="_blank" 
@@ -219,7 +219,7 @@ export function ListingDetailModal({
           {/* Top Left Vitals Indicator */}
           <div className="absolute top-4 left-4 sm:top-8 sm:left-8 flex flex-col gap-2">
              <div className="flex items-center gap-2 rounded-full bg-black/60 backdrop-blur-xl border border-white/10 px-3 py-1 sm:px-4 sm:py-1.5 shadow-xl">
-                <div className="h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full bg-cyber-blue animate-pulse" />
+                <div className="h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full bg-white animate-pulse" />
                 <span className="text-[8px] sm:text-[9px] font-black text-white/90 uppercase tracking-widest">
                   {listing.source || "Facebook"} Live
                 </span>
@@ -234,10 +234,10 @@ export function ListingDetailModal({
             {/* Header Content */}
             <header className="mb-8 sm:mb-10">
                <div className="flex items-center gap-3 mb-3 sm:mb-4">
-                  <span className="text-[9px] sm:text-[11px] font-black tracking-[0.4em] text-cyber-blue uppercase opacity-60">
+                  <span className="text-[9px] sm:text-[11px] font-black tracking-[0.4em] text-white/40 uppercase">
                     Vehicle Intel Profile
                   </span>
-                  <div className="h-px flex-1 bg-gradient-to-r from-cyber-blue/40 to-transparent" />
+                  <div className="h-px flex-1 bg-white/[0.05]" />
                </div>
                <DialogTitle className="text-2xl sm:text-5xl font-black tracking-tighter text-foreground uppercase italic leading-tight mb-4 sm:mb-6">
                  {title}
@@ -245,17 +245,17 @@ export function ListingDetailModal({
                
                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                   <Badge variant="outline" className="h-7 sm:h-8 rounded-lg border-black/5 dark:border-white/5 bg-black/5 dark:bg-white/5 px-2.5 sm:px-3 text-[9px] sm:text-[10px] font-bold text-muted-foreground gap-1.5">
-                    <MapPin size={10} className="text-cyber-blue" /> {loc || "USA"}
+                    <MapPin size={10} className="text-white/40" /> {loc || "USA"}
                   </Badge>
                   <Badge variant="outline" className="h-7 sm:h-8 rounded-lg border-black/5 dark:border-white/5 bg-black/5 dark:bg-white/5 px-2.5 sm:px-3 text-[9px] sm:text-[10px] font-bold text-muted-foreground gap-1.5">
-                    <Gauge size={10} className="text-cyber-blue" /> {mileage}
+                    <Gauge size={10} className="text-white/40" /> {mileage}
                   </Badge>
                   <Badge variant="outline" className="h-7 sm:h-8 rounded-lg border-black/5 dark:border-white/5 bg-black/5 dark:bg-white/5 px-2.5 sm:px-3 text-[9px] sm:text-[10px] font-bold text-muted-foreground gap-1.5">
-                    <Clock size={10} className="text-cyber-blue" /> {timeAgo(listing.postedAt, isRefreshing)}
+                    <Clock size={10} className="text-white/40" /> {timeAgo(listing.postedAt, isRefreshing)}
                   </Badge>
                   {isRefreshing && (
-                    <div className="h-7 w-7 sm:h-8 sm:w-8 flex items-center justify-center rounded-lg bg-cyan-500/10 border border-cyan-500/30">
-                       <Loader2 size={12} className="text-cyan-400 animate-spin" />
+                    <div className="h-7 w-7 sm:h-8 sm:w-8 flex items-center justify-center rounded-lg bg-white/5 border border-white/10">
+                       <Loader2 size={12} className="text-white animate-spin" />
                     </div>
                   )}
                </div>
@@ -266,13 +266,13 @@ export function ListingDetailModal({
               {/* MARKET VITALS: The Intelligence Card */}
               {listing.analysis && (
                 <section>
-                   <div className="flex items-center gap-2 mb-4 text-cyber-blue">
-                      <div className="h-1.5 w-1.5 rounded-full bg-cyber-blue animate-ping" />
+                   <div className="flex items-center gap-2 mb-4 text-white/40">
+                      <div className="h-1.5 w-1.5 rounded-full bg-white animate-ping" />
                       <h3 className="text-[11px] font-black uppercase tracking-[0.3em]">Market Vitals</h3>
                    </div>
-                   <div className="relative group/intel overflow-hidden rounded-2xl sm:rounded-[2rem] bg-cyber-blue/5 border border-cyber-blue/20 p-5 sm:p-8 shadow-[0_0_40px_rgba(0,216,255,0.05)]">
-                      <div className="absolute top-0 right-0 p-8 opacity-10">
-                         <TrendingUp size={80} className="text-cyber-blue" />
+                   <div className="relative group/intel overflow-hidden rounded-2xl sm:rounded-[2rem] bg-white/[0.03] border border-white/10 p-5 sm:p-8 shadow-2xl">
+                      <div className="absolute top-0 right-0 p-8 opacity-5">
+                         <TrendingUp size={80} className="text-white" />
                       </div>
                       
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8 relative z-10">
@@ -286,17 +286,17 @@ export function ListingDetailModal({
                             <span className="text-[9px] sm:text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1">Deal Quality</span>
                             <div className={cn(
                                "text-xl sm:text-3xl font-black italic uppercase tracking-tight leading-tight",
-                               listing.analysis.rating === 'great' ? "text-emerald-400" :
-                               listing.analysis.rating === 'good' ? "text-cyber-blue" :
-                               "text-orange-400"
+                               listing.analysis.rating === 'great' ? "text-white" :
+                               listing.analysis.rating === 'good' ? "text-white/60" :
+                               "text-white/40"
                              )}>
-                               {listing.analysis.rating === 'great' ? "🔥🔥 GREAT" :
-                                listing.analysis.rating === 'good' ? "✨ GOOD" : "FAIR"}
+                               {listing.analysis.rating === 'great' ? "🔥🔥 PRIORITY" :
+                                listing.analysis.rating === 'good' ? "✨ TARGET" : "NODE"}
                             </div>
                          </div>
                          <div className="col-span-full pt-4 sm:pt-6 border-t border-white/10">
                             <p className="text-[12px] sm:text-sm font-medium leading-relaxed text-muted-foreground/90">
-                               Sitting <span className="text-white font-black">{Math.abs(listing.analysis.diffPercent)}% {listing.analysis.diffAmount > 0 ? "below" : "above"}</span> national averages. Detected potential savings of <span className="text-cyber-blue font-black">${(Math.abs(listing.analysis.diffAmount) / 100).toLocaleString()}</span>.
+                               Sitting <span className="text-white font-black">{Math.abs(listing.analysis.diffPercent)}% {listing.analysis.diffAmount > 0 ? "below" : "above"}</span> national averages. Detected potential savings of <span className="text-white font-black">${(Math.abs(listing.analysis.diffAmount) / 100).toLocaleString()}</span>.
                             </p>
                          </div>
                       </div>
@@ -311,9 +311,9 @@ export function ListingDetailModal({
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3">
                   {specs.map((s, idx) => (
-                    <div key={idx} className="flex flex-col gap-1 p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 hover:border-cyber-blue/30 transition-all group/spec">
+                    <div key={idx} className="flex flex-col gap-1 p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 hover:border-white/20 transition-all group/spec">
                       <div className="flex items-center gap-2 mb-1">
-                         <s.icon size={10} className="text-muted-foreground group-hover/spec:text-cyber-blue transition-colors" />
+                         <s.icon size={10} className="text-muted-foreground group-hover/spec:text-white transition-colors" />
                          <span className="text-[8px] sm:text-[9px] font-black text-muted-foreground uppercase tracking-widest">{s.label}</span>
                       </div>
                       <div className="text-xs sm:text-sm font-bold text-foreground truncate">{s.value}</div>
@@ -330,7 +330,7 @@ export function ListingDetailModal({
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {listing.features.map((feat: string, idx: number) => (
-                      <Badge key={idx} variant="outline" className="h-8 rounded-lg border-cyber-blue/30 bg-cyber-blue/10 px-3 text-[10px] font-black text-cyber-blue uppercase tracking-widest">
+                      <Badge key={idx} variant="outline" className="h-8 rounded-lg border-white/10 bg-white/5 px-3 text-[10px] font-black text-white/60 uppercase tracking-widest">
                         {feat}
                       </Badge>
                     ))}
@@ -344,7 +344,7 @@ export function ListingDetailModal({
                    <h3 className="text-[11px] font-black uppercase tracking-[0.3em]">Seller Intelligence</h3>
                 </div>
                 <div className={cn(
-                  "rounded-[2rem] bg-white/5 border border-white/5 p-8 transition-all duration-500",
+                  "rounded-[2rem] bg-white/[0.03] border border-white/5 p-8 transition-all duration-500",
                   isRefreshing ? "opacity-30 blur-sm scale-[0.98]" : "opacity-100"
                 )}>
                   <div className={cn(
@@ -364,7 +364,7 @@ export function ListingDetailModal({
                   {((listing.rawDescription || listing.description || "").length > 200) && (
                     <button 
                       onClick={() => setIsExpanded(!isExpanded)}
-                      className="mt-6 text-[10px] font-black text-cyber-blue uppercase tracking-[0.3em] hover:text-white flex items-center gap-2 transition-colors duration-300"
+                      className="mt-6 text-[10px] font-black text-white/40 uppercase tracking-[0.3em] hover:text-white flex items-center gap-2 transition-colors duration-300"
                     >
                       <History size={12} />
                       {isExpanded ? "COLLAPSE DOSSIER" : "EXPAND FULL DOSSIER"}
@@ -378,7 +378,7 @@ export function ListingDetailModal({
 
           {/* MOBILE ONLY: Persistent Sticky Footer */}
           <div className="sm:hidden p-6 bg-background/90 backdrop-blur-3xl border-t border-white/5">
-             <Button asChild className="w-full h-14 rounded-2xl bg-cyber-blue text-black font-black text-xs tracking-widest uppercase shadow-xl hover:bg-cyan-400 border-none">
+             <Button asChild className="w-full h-14 rounded-2xl bg-white text-black font-black text-xs tracking-widest uppercase shadow-xl hover:bg-white border-none">
                 <a href={listing.listingUrl} target="_blank" rel="noopener noreferrer">
                    VIEW ON FACEBOOK — {formatUsd(listing.price)}
                 </a>

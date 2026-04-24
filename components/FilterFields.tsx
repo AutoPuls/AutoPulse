@@ -182,24 +182,24 @@ export function FilterFields({ initial, onApply }: Props): React.ReactElement {
               </div>
            </div>
 
-           <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
+           <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-2">
                  <Label className="text-[9px] font-black uppercase tracking-[0.3em] text-white/30 ml-1">Max Mileage</Label>
                  <input
                    value={mileageMax}
                    onChange={(e) => setMileageMax(e.target.value)}
                    placeholder="100K"
-                   className="w-full h-10 bg-white/[0.02] border border-white/5 rounded-xl px-4 text-[10px] font-black uppercase tracking-widest text-white outline-none focus:border-primary/40"
+                   className="w-full h-10 bg-white/[0.03] border border-white/5 rounded-xl px-4 text-[10px] font-black uppercase tracking-widest text-white outline-none focus:border-primary/40 transition-all"
                  />
               </div>
-              <div className="space-y-2">
+              <div className="flex flex-col gap-2">
                  <Label className="text-[9px] font-black uppercase tracking-[0.3em] text-white/30 ml-1">Production Year</Label>
                  <input
                    type="number"
                    value={yearMin}
                    onChange={(e) => setYearMin(e.target.value)}
                    placeholder="2018"
-                   className="w-full h-10 bg-white/[0.02] border border-white/5 rounded-xl px-4 text-[10px] font-black uppercase tracking-widest text-white outline-none focus:border-primary/40"
+                   className="w-full h-10 bg-white/[0.03] border border-white/5 rounded-xl px-4 text-[10px] font-black uppercase tracking-widest text-white outline-none focus:border-primary/40 transition-all"
                  />
               </div>
            </div>

@@ -31,7 +31,7 @@ const placeholderSvg =
         </linearGradient>
       </defs>
       <rect width="640" height="360" fill="url(#g)"/>
-      <text x="50%" y="45%" dominant-baseline="middle" text-anchor="middle" fill="#00D8FF" opacity="0.3" font-family="system-ui" font-weight="900" font-size="40" letter-spacing="0.2em">AUTOPULSE</text>
+      <text x="50%" y="45%" dominant-baseline="middle" text-anchor="middle" fill="#FFFFFF" opacity="0.3" font-family="system-ui" font-weight="900" font-size="40" letter-spacing="0.2em">AUTOPULSE</text>
       <text x="50%" y="58%" dominant-baseline="middle" text-anchor="middle" fill="#888" opacity="0.5" font-family="system-ui" font-weight="500" font-size="14" letter-spacing="0.1em">VISUAL CAPTURE PENDING</text>
     </svg>`,
   );
@@ -63,7 +63,7 @@ export const ListingCard = memo(function ListingCard({ listing }: { listing: any
 
   return (
     <ListingDetailModal listing={listing}>
-      <article className="group relative flex flex-col overflow-hidden rounded-3xl sm:rounded-[2.5rem] bg-card/40 backdrop-blur-3xl ring-1 ring-white/5 transition-all duration-700 hover:shadow-[0_0_80px_rgba(0,216,255,0.2)] hover:-translate-y-2 hover:ring-cyber-blue/40 cursor-pointer active:scale-[0.98] border border-white/5 h-full">
+      <article className="group relative flex flex-col overflow-hidden rounded-3xl sm:rounded-[2.5rem] bg-card/40 backdrop-blur-3xl ring-1 ring-white/5 transition-all duration-700 hover:shadow-[0_0_80px_rgba(255,255,255,0.05)] hover:-translate-y-2 hover:ring-white/20 cursor-pointer active:scale-[0.98] border border-white/5 h-full">
         
         {/* Visual Engine */}
         <div className="relative aspect-[16/10] sm:aspect-[4/3] w-full overflow-hidden shrink-0">
@@ -80,9 +80,9 @@ export const ListingCard = memo(function ListingCard({ listing }: { listing: any
           
           {/* Price Badge */}
           <div className="absolute right-4 top-4 sm:right-6 sm:top-6 z-30">
-             <div className="rounded-xl sm:rounded-2xl bg-cyber-blue px-3 py-1.5 sm:px-4 sm:py-2 shadow-[0_0_20px_rgba(0,216,255,0.5)] transition-all duration-500 group-hover:scale-105">
-                <p className="text-lg sm:text-xl font-black tracking-tighter text-black leading-none">
-                  {formatUsd(listing.price)}
+             <div className="rounded-xl sm:rounded-2xl bg-white px-3 py-1.5 sm:px-4 sm:py-2 shadow-2xl transition-all duration-500 group-hover:scale-105">
+                <p className="text-lg sm:text-xl font-black tracking-tighter text-black leading-none uppercase">
+                   {formatUsd(listing.price)}
                 </p>
              </div>
           </div>
@@ -92,12 +92,12 @@ export const ListingCard = memo(function ListingCard({ listing }: { listing: any
             <div className="absolute left-4 top-4 sm:left-6 sm:top-6 z-20">
               <div className={cn(
                 "flex h-7 sm:h-8 items-center justify-center rounded-lg sm:rounded-xl px-2.5 sm:px-4 text-[8px] sm:text-[9px] font-black tracking-[0.2em] backdrop-blur-xl border uppercase transition-all duration-500",
-                listing.analysis.rating === 'great' ? "bg-emerald-500/90 text-white border-emerald-400" :
-                listing.analysis.rating === 'good' ? "bg-white/10 text-cyber-blue border-cyber-blue/30" :
-                "bg-orange-500/80 text-white border-orange-400"
+                listing.analysis.rating === 'great' ? "bg-white text-black border-white" :
+                listing.analysis.rating === 'good' ? "bg-white/10 text-white border-white/20" :
+                "bg-white/5 text-white/40 border-white/5"
               )}>
-                {listing.analysis.rating === 'great' ? "🔥 GREAT DEAL" : 
-                 listing.analysis.rating === 'good' ? "✨ GOOD VALUE" : "FAIR PRICE"}
+                {listing.analysis.rating === 'great' ? "🔥 PRIORITY" : 
+                 listing.analysis.rating === 'good' ? "✨ TARGET" : "UNIT"}
               </div>
             </div>
           )}
@@ -106,12 +106,12 @@ export const ListingCard = memo(function ListingCard({ listing }: { listing: any
           <div className="absolute bottom-4 sm:bottom-6 inset-x-4 sm:inset-x-6 z-20 flex gap-2">
             <div className="flex flex-1 items-center gap-2 sm:gap-3 rounded-xl sm:rounded-2xl bg-black/70 backdrop-blur-2xl border border-white/10 px-3 py-2 sm:px-4 sm:py-2.5 transition-all duration-500 overflow-hidden">
                <div className="flex items-center gap-1.5 border-r border-white/10 pr-2 sm:pr-3 shrink-0">
-                  <Gauge size={10} className="text-cyber-blue sm:size-3" />
-                  <span className="text-[9px] sm:text-[10px] font-black tracking-widest text-white/90">{mileage}</span>
+                  <Gauge size={10} className="text-white/40 sm:size-3" />
+                  <span className="text-[9px] sm:text-[10px] font-black tracking-widest text-white/90 uppercase">{mileage}</span>
                </div>
                <div className="flex items-center gap-1.5 truncate">
-                  <MapPin size={10} className="text-cyber-blue sm:size-3" />
-                  <span className="text-[9px] sm:text-[10px] font-black tracking-widest text-white/90 truncate">{listing.city || "USA"}</span>
+                  <MapPin size={10} className="text-white/40 sm:size-3" />
+                  <span className="text-[9px] sm:text-[10px] font-black tracking-widest text-white/90 truncate uppercase">{listing.city || "USA"}</span>
                </div>
             </div>
             
@@ -125,10 +125,10 @@ export const ListingCard = memo(function ListingCard({ listing }: { listing: any
         <div className="relative z-10 flex flex-1 flex-col px-5 pb-6 pt-5 sm:px-8 sm:pb-8 sm:pt-6">
           <div className="mb-3 sm:mb-4">
             <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
-               <span className="text-[8px] sm:text-[9px] font-black tracking-[0.3em] text-cyber-blue/70 uppercase">
-                 {listing.year || "New Entry"}
+               <span className="text-[8px] sm:text-[9px] font-black tracking-[0.3em] text-white/40 uppercase">
+                 {listing.year || "NODE"}
                </span>
-               <div className="h-px flex-1 bg-gradient-to-r from-cyber-blue/20 to-transparent" />
+               <div className="h-px flex-1 bg-white/[0.05]" />
             </div>
             <h2 className="line-clamp-1 font-display text-lg sm:text-2xl font-black leading-tight tracking-tight text-foreground transition-colors duration-500 uppercase italic">
               {title}
@@ -137,18 +137,18 @@ export const ListingCard = memo(function ListingCard({ listing }: { listing: any
 
           <div className="flex flex-wrap gap-1.5 mb-4 sm:mb-5">
             {listing.transmission && (
-              <span className="rounded-full bg-white/5 border border-white/5 px-2.5 py-0.5 text-[7px] sm:text-[8px] font-black uppercase tracking-widest text-muted-foreground">
+              <span className="rounded-full bg-white/5 border border-white/5 px-2.5 py-0.5 text-[7px] sm:text-[8px] font-black uppercase tracking-widest text-white/40">
                 {listing.transmission}
               </span>
             )}
             {listing.trim && (
-               <span className="rounded-full bg-cyber-blue/10 border border-cyber-blue/10 px-2.5 py-0.5 text-[7px] sm:text-[8px] font-black uppercase tracking-widest text-cyber-blue/80">
+               <span className="rounded-full bg-white/10 border border-white/20 px-2.5 py-0.5 text-[7px] sm:text-[8px] font-black uppercase tracking-widest text-white">
                  {listing.trim}
                </span>
             )}
             {listing.parseScore > 80 && (
-               <span className="hidden xs:inline-block rounded-full bg-emerald-500/10 border border-emerald-500/10 px-2.5 py-0.5 text-[7px] sm:text-[8px] font-black uppercase tracking-widest text-emerald-400/80">
-                 High Accuracy
+               <span className="hidden xs:inline-block rounded-full bg-white/10 px-2.5 py-0.5 text-[7px] sm:text-[8px] font-black uppercase tracking-widest text-white/20">
+                 VERIFIED
                </span>
             )}
           </div>
@@ -156,16 +156,16 @@ export const ListingCard = memo(function ListingCard({ listing }: { listing: any
           <div className="mt-auto flex items-center justify-between border-t border-white/5 pt-4">
             <div className="flex items-center gap-2">
                <div className="h-4 w-4 sm:h-5 sm:w-5 rounded-full bg-white/5 border border-white/5 flex items-center justify-center">
-                  <div className="h-1.5 w-1.5 rounded-full bg-cyber-blue animate-pulse" />
+                  <div className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
                </div>
-               <span className="text-[8px] sm:text-[9px] font-black text-muted-foreground uppercase tracking-widest">
-                 Live Analysis
+               <span className="text-[8px] sm:text-[9px] font-black text-white/20 uppercase tracking-widest">
+                 Live Feed
                </span>
             </div>
             <div className="sm:hidden">
                 <ComparisonToggle listing={listing} compact />
             </div>
-            <ArrowRightLeft size={14} className="hidden sm:block text-white/10 group-hover:text-cyber-blue transition-all" />
+            <ArrowRightLeft size={14} className="hidden sm:block text-white/10 group-hover:text-white transition-all" />
           </div>
         </div>
       </article>
@@ -205,8 +205,8 @@ function ComparisonToggle({ listing, compact }: { listing: any, compact?: boolea
         "flex items-center justify-center rounded-full transition-all duration-300 border",
         compact ? "h-8 w-8" : "h-10 w-10 border-2",
         active 
-          ? "bg-cyber-blue border-white shadow-[0_0_20px_rgba(0,216,255,0.6)] animate-pulse" 
-          : "bg-black/60 backdrop-blur-md border-white/20 hover:border-cyber-blue hover:text-cyber-blue text-white",
+          ? "bg-white border-white shadow-xl animate-pulse" 
+          : "bg-black/60 backdrop-blur-md border-white/20 hover:border-white hover:text-white text-white/40",
         isFull && "opacity-50 cursor-not-allowed grayscale"
       )}
     >
