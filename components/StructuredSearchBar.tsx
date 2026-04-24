@@ -118,13 +118,26 @@ export function StructuredSearchBar() {
             </div>
 
             {makeOpen && (
-                <div className="absolute top-[calc(100%+12px)] left-0 right-0 z-50 glass border border-white/10 rounded-3xl shadow-2xl max-h-[350px] overflow-y-auto animate-in fade-in slide-in-from-top-4">
-                    <div className="p-2 grid grid-cols-1 gap-1">
+                <div className="absolute top-[calc(100%+12px)] left-0 right-[-200px] z-[100] bg-background/95 backdrop-blur-3xl border border-foreground/10 rounded-[2rem] shadow-[0_32px_64px_rgba(0,0,0,0.5)] max-h-[450px] overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-4 duration-300">
+                    <div className="p-6 border-b border-foreground/5 bg-foreground/[0.02]">
+                        <span className="text-[10px] font-black uppercase tracking-[0.4em] text-muted-foreground">Select Operational Unit</span>
+                    </div>
+                    <div className="p-2 overflow-y-auto custom-scrollbar grid grid-cols-2 gap-1">
+                        <button
+                            type="button"
+                            className="w-full text-left px-5 py-4 hover:bg-foreground/5 rounded-2xl transition-all font-black text-[11px] uppercase tracking-widest text-muted-foreground hover:text-foreground border border-transparent hover:border-foreground/10"
+                            onClick={() => {
+                                setMake("");
+                                setMakeOpen(false);
+                            }}
+                        >
+                            <span className="opacity-40">ALL MANUFACTURERS</span>
+                        </button>
                         {filteredMakes.map(m => (
                             <button
                                 key={m}
                                 type="button"
-                                className="w-full text-left px-5 py-3.5 hover:bg-white/5 rounded-2xl transition-all font-black text-[11px] uppercase tracking-widest text-white/60 hover:text-white"
+                                className="w-full text-left px-5 py-4 hover:bg-foreground/5 rounded-2xl transition-all font-black text-[11px] uppercase tracking-widest text-muted-foreground hover:text-foreground border border-transparent hover:border-foreground/10"
                                 onClick={() => {
                                     setMake(m);
                                     setMakeOpen(false);
@@ -212,13 +225,26 @@ export function StructuredSearchBar() {
             </div>
 
             {cityOpen && (
-                <div className="absolute top-[calc(100%+12px)] left-0 right-0 z-50 glass border border-white/10 rounded-3xl shadow-2xl max-h-[350px] overflow-y-auto animate-in fade-in slide-in-from-top-4">
-                    <div className="p-2 space-y-1">
+                <div className="absolute top-[calc(100%+12px)] left-[-200px] right-0 z-[100] bg-background/95 backdrop-blur-3xl border border-foreground/10 rounded-[2rem] shadow-[0_32px_64px_rgba(0,0,0,0.5)] max-h-[450px] overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-4 duration-300">
+                    <div className="p-6 border-b border-foreground/5 bg-foreground/[0.02]">
+                        <span className="text-[10px] font-black uppercase tracking-[0.4em] text-muted-foreground">Select Deployment Sector</span>
+                    </div>
+                    <div className="p-2 overflow-y-auto custom-scrollbar grid grid-cols-2 gap-1">
+                        <button
+                            type="button"
+                            className="w-full text-left px-5 py-4 hover:bg-foreground/5 rounded-2xl transition-all font-black text-[11px] uppercase tracking-widest text-muted-foreground hover:text-foreground border border-transparent hover:border-foreground/10"
+                            onClick={() => {
+                                setCity("");
+                                setCityOpen(false);
+                            }}
+                        >
+                            <span className="opacity-40">NATIONWIDE</span>
+                        </button>
                         {filteredCities.map(c => (
                             <button
                                 key={c.slug}
                                 type="button"
-                                className="w-full text-left px-5 py-3.5 hover:bg-white/5 rounded-2xl transition-all font-black text-[11px] uppercase tracking-widest text-white/60 hover:text-white"
+                                className="w-full text-left px-5 py-4 hover:bg-foreground/5 rounded-2xl transition-all font-black text-[11px] uppercase tracking-widest text-muted-foreground hover:text-foreground border border-transparent hover:border-foreground/10"
                                 onClick={() => {
                                     setCity(c.label);
                                     setCityOpen(false);
