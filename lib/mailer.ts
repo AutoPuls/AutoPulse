@@ -252,13 +252,13 @@ export async function sendMail(options: {
   subject: string;
   html: string;
 }): Promise<void> {
-  const from = process.env.EMAIL_USER;
-  if (!from) {
-    throw new Error("EMAIL_USER is not set.");
+  const fromEmail = process.env.EMAIL_FROM || process.env.EMAIL_USER;
+  if (!fromEmail) {
+    throw new Error("No sender email found (EMAIL_FROM or EMAIL_USER).");
   }
   const transport = createTransport();
   await transport.sendMail({
-    from: `AutoPulse <${from}>`,
+    from: `AutoPulse <${fromEmail}>`,
     to: options.to,
     subject: options.subject,
     html: options.html,

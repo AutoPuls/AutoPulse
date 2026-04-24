@@ -143,8 +143,8 @@ export function buildStructuredWhere(
   p: ParsedListingParams,
 ): Prisma.ListingWhereInput {
   const where: Prisma.ListingWhereInput = {
-    // We allow all listings in the initial view to show volume,
-    // but users can still filter down by make/model later.
+    isJunk: false,
+    isCar: true,
   };
 
   

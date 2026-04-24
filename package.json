@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "workers": "ts-node --project tsconfig.json scripts/keepAlive.ts",
+    "harvest": "ts-node --project tsconfig.json scripts/mega-harvest-v2.ts",
     "db:reset": "npx ts-node scratch/clear_db.ts",
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",

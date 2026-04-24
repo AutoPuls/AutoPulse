@@ -77,27 +77,36 @@ export function isJunkTitle(title: string, description: string = ""): boolean {
   // Marketplace Listing is only junk if description is also empty or junk
   if (low === "marketplace listing" && description.length < 20) return true;
 
-  // 2. Non-Car Vehicle Keywords (Aggressive)
+  // 2. Non-Car Vehicle Keywords (Aggressive but refined)
   const nonCarKeywords = [
     // Two-wheelers
     "motorcycle", "motercycle", "moto", "scooter", "moped", "dirt bike", "pit bike", "ebike", "bicycle", "bycycle", "bike",
-    "kawasaki", "yamaha", "harley", "davidson", "ducati", "triumph", "vespa", "grom", "hayabusa", "ninja",
+    "kawasaki", "yamaha", "harley", "davidson", "ducati", "triumph", "vespa", "grom", "hayabusa", "ninja", "ktm",
     "\\bcbr\\b", "\\bgsxr\\b", "\\b250r\\b", "\\b600r\\b", "\\b1000r\\b", "\\d+cc\\b",
 
     // Off-road & Marine
-    "atv", "utv", "quad", "four wheeler", "polaris", "can-am", "can am", "rzr", "maverick", "talon",
-    "boat", "vessel", "yacht", "sea-doo", "seadoo", "jet ski", "jetski", "pontoon", "outboard",
+    "atv", "utv", "quad", "four wheeler", "4 wheeler", "polaris", "can-am", "can am", "rzr", "maverick", "talon",
+    "boat", "vessel", "yacht", "sea-doo", "seadoo", "jet ski", "jetski", "pontoon", "outboard", "sailboat",
 
     // RVs & Trailers
     "rv", "camper", "travel trailer", "fifth wheel", "motorhome", "winnebago", "coachmen", "jayco", "forest river", "keystone",
-    "trailer", "tráiler", "utility", "cargo", "dump trailer", "flatbed", "car hauler", "enclosed",
+    "trailer", "tráiler", "utility trailer", "cargo trailer", "dump trailer", "flatbed", "car hauler", "enclosed",
 
     // Industrial/Garden
     "tractor", "mower", "zero turn", "kubota", "john deere", "bobcat", "skid steer", "equipment", 
-    "parts only", "parting out", "shell only", "frame only", "wtb", "wtt", "looking for"
+    "parts only", "parting out", "shell only", "frame only", "wtb", "wtt"
   ];
 
-  return nonCarKeywords.some(k => new RegExp(`\\b${k}\\b`, "i").test(low));
+  const hasNonCarKeyword = nonCarKeywords.some(k => new RegExp(`\\b${k}\\b`, "i").test(low));
+  if (hasNonCarKeyword) return true;
+
+  // 3. Buyer Intent Filter (WTB/WTT)
+  // Only junk if at the start of title (e.g. "Looking for BMW") 
+  // or specifically mentions wanting to buy/trade.
+  if (/^(i am )?looking for\b/i.test(title.trim())) return true;
+  if (/\b(looking to buy|looking for any|want to buy|wtb|wtt)\b/i.test(low)) return true;
+
+  return false;
 }
 
 /**

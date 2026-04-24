@@ -53,15 +53,12 @@ export async function POST(req: Request) {
           : (item.price ? Math.round(parseFloat(item.price) * 100) : 0);
 
         // 4. Image collection
-        let images = [];
-        if (item.primary_listing_photo_url) images.push(item.primary_listing_photo_url);
-        if (item.listing_photos && Array.isArray(item.listing_photos)) {
-          const moreImages = item.listing_photos.map((p: any) => p.image?.uri || p.url).filter(Boolean);
-          images = [...new Set([...images, ...moreImages])];
-        } else if (item.images && Array.isArray(item.images)) {
-          const moreImages = item.images.map((img: any) => typeof img === 'string' ? img : img.url).filter(Boolean);
-          images = [...new Set([...images, ...moreImages])];
-        }
+        const imageUrls = [
+          item.primary_listing_photo_url,
+          ...(item.listing_photos?.map((p: any) => p.image?.uri || p.url) || []),
+          ...(item.all_listing_photos?.map((p: any) => p.image?.uri) || []),
+          ...(item.additional_photos?.map((p: any) => p.uri) || [])
+        ].filter(Boolean);
 
         // 5. Merge Parser Results with Scraper Metadata
         const listingData = {
@@ -71,7 +68,7 @@ export async function POST(req: Request) {
           description: description,
           listingUrl: listingUrl,
           price: priceCents,
-          imageUrls: images,
+          imageUrls: Array.from(new Set(imageUrls)),
           city: item.location_text?.text?.split(',')[0]?.trim() || item.city || null,
           state: item.location_text?.text?.split(',')[1]?.trim() || item.state || null,
           postedAt: item.creation_time ? new Date(item.creation_time * 1000) : new Date(),
