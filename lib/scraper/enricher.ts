@@ -33,12 +33,14 @@ export async function enrichListingDetails(listingId: string, existingPage?: Pag
         scrapedTitle = listing.rawTitle || '';
     }
 
-    // Extract description
+    // Extract description and all visible text (for specs like mileage, transmission)
     const description = await page.evaluate(() => {
-        // Facebook's description is usually in a span with lots of text
+        const bodyText = document.body?.innerText || '';
         const spans = Array.from(document.querySelectorAll('span'));
         const descSpan = spans.find(s => s.textContent && s.textContent.length > 200 && !s.textContent.includes(' Marketplace'));
-        return descSpan ? descSpan.textContent : '';
+        const cleanDesc = descSpan ? descSpan.textContent : '';
+        
+        return `${cleanDesc}\n\n--- FULL PAGE SPECS ---\n\n${bodyText}`;
     });
 
     const parsed = parseListingText(scrapedTitle || listing.rawTitle || '', description || '');
