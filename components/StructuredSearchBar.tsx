@@ -15,25 +15,31 @@ export function StructuredSearchBar() {
   const [model, setModel] = useState("");
   const [city, setCity] = useState("");
 
+  // Separate states for the search inputs in the dropdowns
+  const [makeQuery, setMakeQuery] = useState("");
+  const [modelQuery, setModelQuery] = useState("");
+  const [cityQuery, setCityQuery] = useState("");
+
   const [makeOpen, setMakeOpen] = useState(false);
   const [cityOpen, setCityOpen] = useState(false);
   const [modelOpen, setModelOpen] = useState(false);
 
+  const formRef = useRef<HTMLFormElement>(null);
   const makeRef = useRef<HTMLDivElement>(null);
   const cityRef = useRef<HTMLDivElement>(null);
   const modelRef = useRef<HTMLDivElement>(null);
 
   const filteredMakes = useMemo(() => {
-    const q = make.toLowerCase();
+    const q = makeQuery.toLowerCase();
     return MAKES.filter(m => m.toLowerCase().includes(q)).sort();
-  }, [make]);
+  }, [makeQuery]);
 
   const filteredCities = useMemo(() => {
-    const q = city.toLowerCase();
+    const q = cityQuery.toLowerCase();
     return MARKETPLACE_CITIES.filter(c =>
       c.label.toLowerCase().includes(q) || c.slug.toLowerCase().includes(q)
     ).slice(0, 60);
-  }, [city]);
+  }, [cityQuery]);
 
   const rawModels = useMemo(() => {
     if (!make) return [];
@@ -42,16 +48,29 @@ export function StructuredSearchBar() {
   }, [make]);
 
   const filteredModels = useMemo(() => {
-    const q = model.toLowerCase();
+    const q = modelQuery.toLowerCase();
     return rawModels.filter(m => m.toLowerCase().includes(q)).sort();
-  }, [model, rawModels]);
+  }, [modelQuery, rawModels]);
 
   // Close on outside click
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
-      if (makeRef.current && !makeRef.current.contains(e.target as Node)) setMakeOpen(false);
-      if (cityRef.current && !cityRef.current.contains(e.target as Node)) setCityOpen(false);
-      if (modelRef.current && !modelRef.current.contains(e.target as Node)) setModelOpen(false);
+      const target = e.target as Node;
+
+      // MOBILE LOGIC: Check against the entire form container
+      if (window.innerWidth < 640) {
+        if (formRef.current && !formRef.current.contains(target)) {
+          setMakeOpen(false);
+          setCityOpen(false);
+          setModelOpen(false);
+        }
+        return;
+      }
+
+      // DESKTOP LOGIC: Check individual refs to allow switching between pills
+      if (makeRef.current && !makeRef.current.contains(target)) setMakeOpen(false);
+      if (cityRef.current && !cityRef.current.contains(target)) setCityOpen(false);
+      if (modelRef.current && !modelRef.current.contains(target)) setModelOpen(false);
     };
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
@@ -73,6 +92,7 @@ export function StructuredSearchBar() {
 
   return (
     <form
+      ref={formRef}
       onSubmit={handleSearch}
       className="relative w-full"
     >
@@ -83,7 +103,13 @@ export function StructuredSearchBar() {
         <div className="relative flex-1 min-w-0" ref={makeRef}>
           <button
             type="button"
-            onClick={() => { setMakeOpen(v => !v); setCityOpen(false); setModelOpen(false); }}
+            onClick={() => { 
+                const newState = !makeOpen;
+                setMakeOpen(newState); 
+                if (newState) setMakeQuery(""); 
+                setCityOpen(false); 
+                setModelOpen(false); 
+            }}
             className="w-full flex flex-col items-start px-5 py-4 hover:bg-surface-raised transition-colors rounded-l-2xl"
           >
             <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Make</span>
@@ -105,8 +131,8 @@ export function StructuredSearchBar() {
               emptyLabel="Any make"
               onSelect={v => { setMake(v); setMakeOpen(false); }}
               onClear={() => { setMake(""); setMakeOpen(false); }}
-              search={make}
-              onSearch={setMake}
+              search={makeQuery}
+              onSearch={setMakeQuery}
               searchPlaceholder="Search makes..."
               columns={2}
             />
@@ -120,7 +146,13 @@ export function StructuredSearchBar() {
           <button
             type="button"
             disabled={!make}
-            onClick={() => { setModelOpen(v => !v); setMakeOpen(false); setCityOpen(false); }}
+            onClick={() => { 
+                const newState = !modelOpen;
+                setModelOpen(newState); 
+                if (newState) setModelQuery("");
+                setMakeOpen(false); 
+                setCityOpen(false); 
+            }}
             className="w-full flex flex-col items-start px-5 py-4 hover:bg-surface-raised transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Model</span>
@@ -142,8 +174,8 @@ export function StructuredSearchBar() {
               emptyLabel="Any model"
               onSelect={v => { setModel(v); setModelOpen(false); }}
               onClear={() => { setModel(""); setModelOpen(false); }}
-              search={model}
-              onSearch={setModel}
+              search={modelQuery}
+              onSearch={setModelQuery}
               searchPlaceholder="Search models..."
               columns={2}
             />
@@ -156,7 +188,13 @@ export function StructuredSearchBar() {
         <div className="relative flex-1 min-w-0" ref={cityRef}>
           <button
             type="button"
-            onClick={() => { setCityOpen(v => !v); setMakeOpen(false); setModelOpen(false); }}
+            onClick={() => { 
+                const newState = !cityOpen;
+                setCityOpen(newState); 
+                if (newState) setCityQuery("");
+                setMakeOpen(false); 
+                setModelOpen(false); 
+            }}
             className="w-full flex flex-col items-start px-5 py-4 hover:bg-surface-raised transition-colors"
           >
             <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Location</span>
@@ -179,8 +217,8 @@ export function StructuredSearchBar() {
               emptyLabel="Nationwide"
               onSelect={v => { setCity(v); setCityOpen(false); }}
               onClear={() => { setCity(""); setCityOpen(false); }}
-              search={city}
-              onSearch={setCity}
+              search={cityQuery}
+              onSearch={setCityQuery}
               searchPlaceholder="Search cities..."
               columns={2}
               alignRight
@@ -208,7 +246,13 @@ export function StructuredSearchBar() {
           label="Make"
           value={make}
           placeholder="Any make"
-          onClick={() => { setMakeOpen(v => !v); setCityOpen(false); setModelOpen(false); }}
+          onClick={() => { 
+              const newState = !makeOpen;
+              setMakeOpen(newState); 
+              if (newState) setMakeQuery("");
+              setCityOpen(false); 
+              setModelOpen(false); 
+          }}
           onClear={() => setMake("")}
           isOpen={makeOpen}
         />
@@ -219,8 +263,8 @@ export function StructuredSearchBar() {
             onSelect={v => { setMake(v); setMakeOpen(false); }}
             onClear={() => { setMake(""); setMakeOpen(false); }}
             onClose={() => setMakeOpen(false)}
-            search={make}
-            onSearch={setMake}
+            search={makeQuery}
+            onSearch={setMakeQuery}
             searchPlaceholder="Search makes..."
           />
         )}
@@ -232,7 +276,14 @@ export function StructuredSearchBar() {
           label="Model"
           value={model}
           placeholder={make ? "Any model" : "Select make first"}
-          onClick={() => { if (!make) return; setModelOpen(v => !v); setMakeOpen(false); setCityOpen(false); }}
+          onClick={() => { 
+              if (!make) return; 
+              const newState = !modelOpen;
+              setModelOpen(newState); 
+              if (newState) setModelQuery("");
+              setMakeOpen(false); 
+              setCityOpen(false); 
+          }}
           onClear={() => setModel("")}
           isOpen={modelOpen}
           disabled={!make}
@@ -244,8 +295,8 @@ export function StructuredSearchBar() {
             onSelect={v => { setModel(v); setModelOpen(false); }}
             onClear={() => { setModel(""); setModelOpen(false); }}
             onClose={() => setModelOpen(false)}
-            search={model}
-            onSearch={setModel}
+            search={modelQuery}
+            onSearch={setModelQuery}
             searchPlaceholder="Search models..."
           />
         )}
@@ -257,7 +308,13 @@ export function StructuredSearchBar() {
           label="Location"
           value={city}
           placeholder="Nationwide"
-          onClick={() => { setCityOpen(v => !v); setMakeOpen(false); setModelOpen(false); }}
+          onClick={() => { 
+              const newState = !cityOpen;
+              setCityOpen(newState); 
+              if (newState) setCityQuery("");
+              setMakeOpen(false); 
+              setModelOpen(false); 
+          }}
           onClear={() => setCity("")}
           isOpen={cityOpen}
           icon={<MapPin size={14} className="text-muted-foreground" />}
@@ -269,8 +326,8 @@ export function StructuredSearchBar() {
             onSelect={v => { setCity(v); setCityOpen(false); }}
             onClear={() => { setCity(""); setCityOpen(false); }}
             onClose={() => setCityOpen(false)}
-            search={city}
-            onSearch={setCity}
+            search={cityQuery}
+            onSearch={setCityQuery}
             searchPlaceholder="Search cities..."
           />
         )}
