@@ -12,9 +12,9 @@ async function missionControl() {
             execSync('npx ts-node scripts/mega-harvest-v2.ts', { stdio: 'inherit' });
 
             console.log(`\n[${new Date().toLocaleTimeString()}] 🛠️ Phase 2: Starting background detail repair...`);
-            // Run the free enrichment for 20 minutes before next scrape
-            for (let i = 0; i < 4; i++) {
-                console.log(`   Sync batch ${i+1}/4...`);
+            // Run the free enrichment for 45 minutes to clear the queue
+            for (let i = 0; i < 6; i++) {
+                console.log(`   Sync batch ${i+1}/6...`);
                 execSync('npx ts-node scripts/bulk-enrich.ts', { stdio: 'inherit' });
                 
                 // Every other batch, let's also check for sold cars (keep inventory clean)
@@ -26,8 +26,8 @@ async function missionControl() {
                 await new Promise(r => setTimeout(r, 60000)); 
             }
 
-            console.log('\n😴 Resting for 1 hour before next major scrape...');
-            await new Promise(r => setTimeout(r, 3600000)); // 1 hour pause
+            console.log('\n😴 Resting for 15 minutes before next major harvest...');
+            await new Promise(r => setTimeout(r, 900000)); // 15 mins pause
         } catch (err) {
             console.error('⚠️ Mission Control encountered an error, restarting in 5 mins...', err);
             await new Promise(r => setTimeout(r, 300000));

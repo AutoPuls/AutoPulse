@@ -66,13 +66,13 @@ function capitalize(s: string): string {
 export function isJunkTitle(title: string, description: string = ""): boolean {
   const low = (title + " " + (description || "")).toLowerCase().trim();
   
-  // 1. Generic Placeholders & Category Nav Keywords
+  // 1. Generic Placeholders & Category Nav Keywords (Exact matches only)
   const navPatterns = [
     "explore", "advanced filters enabled", "annonces de marketplace", "voitures", "autos", 
     "carros", "véhicules", "vehicles", "cars", "trucks", "annonces", "venta", "generic listing"
   ];
   
-  if (navPatterns.some(p => low.includes(p))) return true;
+  if (navPatterns.some(p => new RegExp(`^${p}$`, 'i').test(low))) return true;
   
   // Marketplace Listing is only junk if description is also empty or junk
   if (low === "marketplace listing" && description.length < 20) return true;
