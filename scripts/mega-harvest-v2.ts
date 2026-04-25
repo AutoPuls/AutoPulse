@@ -7,10 +7,10 @@ import { ApifyClient } from 'apify-client';
 import { PrismaClient } from '@prisma/client';
 
 // ─── SAFETY CONFIG ────────────────────────────────────────────────────────────
-const MAX_URLS_PER_RUN = 8;           // Increased to user's 8 links
+const MAX_URLS_PER_RUN = 24;           // Increased for more city coverage
 const MAX_RESULTS_PER_URL = 500;      // Higher limit per URL
-const RESULTS_LIMIT = 3000;           // Goal: 3000 cars
-const USE_RESIDENTIAL = false;        // Standard cheap proxies
+const RESULTS_LIMIT = 5000;           // Goal: 5000 cars per run
+const USE_RESIDENTIAL = true;         // Use high-quality proxies for more cities
 const DRY_RUN = process.argv.includes('--dry-run'); // Pass --dry-run to preview only
 // ──────────────────────────────────────────────────────────────────────────────
 
@@ -64,7 +64,12 @@ async function runMegaHarvest() {
   console.log(`\n🎯 Active subscriptions: ${subs.length} (${combos.length} unique combos)`);
 
   // 3. Build targeted URLs
-  const generalCities = ['miami', 'atlanta', 'dallas', 'houston', 'losangeles', 'chicago'];
+  const generalCities = [
+    'miami', 'atlanta', 'dallas', 'houston', 'losangeles', 'chicago', 
+    'newyork', 'philadelphia', 'phoenix', 'sanantonio', 'sandiego', 
+    'orlando', 'lasvegas', 'charlotte', 'seattle', 'denver',
+    'washington', 'boston', 'detroit', 'nashville'
+  ];
   const startUrls: { url: string }[] = [];
 
   // General browse for non-subscription cars
@@ -74,9 +79,10 @@ async function runMegaHarvest() {
     });
   }
 
-  // Priority car+city searches from subscriptions
+  // Priority car+city searches from subscriptions (Top 10 hubs for targeted)
+  const priorityCities = ['miami', 'atlanta', 'dallas', 'houston', 'losangeles', 'chicago', 'newyork', 'orlando', 'phoenix', 'lasvegas'];
   for (const combo of combos) {
-    for (const city of ['miami', 'atlanta']) { // Only 2 cities for targeted to save money
+    for (const city of priorityCities) {
       startUrls.push({
         url: `https://www.facebook.com/marketplace/${city}/search?query=${encodeURIComponent(combo)}&category_id=vehicles&sort=CREATION_TIME_DESCEND`
       });
@@ -101,7 +107,7 @@ async function runMegaHarvest() {
   const input = {
     urls: finalUrls.map(u => u.url), 
     maxPagesPerUrl: 4,             // Fixed to user's setting
-    maxItems: 3000,                // Goal: 3000 cars
+    maxItems: RESULTS_LIMIT,       // Use the dynamic goal
     proxyConfiguration: { 
       useApifyProxy: true,
       apifyProxyGroups: ['RESIDENTIAL'],
