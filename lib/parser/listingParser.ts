@@ -81,15 +81,17 @@ export function isJunkTitle(title: string, description: string = ""): boolean {
   const nonCarKeywords = [
     // Two-wheelers
     "motorcycle", "motercycle", "moto", "scooter", "moped", "dirt bike", "pit bike", "ebike", "bicycle", "bycycle", "bike",
-    "kawasaki", "yamaha", "harley", "davidson", "ducati", "triumph", "vespa", "grom", "hayabusa", "ninja", "ktm",
+    "kawasaki", "yamaha", "harley", "davidson", "ducati", "triumph", "vespa", "grom", "hayabusa", "ninja", "ktm", "aprilia",
     "\\bcbr\\b", "\\bgsxr\\b", "\\b250r\\b", "\\b600r\\b", "\\b1000r\\b", "\\d+cc\\b",
 
     // Off-road & Marine
     "atv", "utv", "quad", "four wheeler", "4 wheeler", "polaris", "can-am", "can am", "rzr", "maverick", "talon",
+    "trailmaster", "go kart", "gokart", "kart",
     "boat", "vessel", "yacht", "sea-doo", "seadoo", "jet ski", "jetski", "pontoon", "outboard", "sailboat", "donzi",
 
     // RVs & Trailers
     "rv", "camper", "travel trailer", "fifth wheel", "motorhome", "winnebago", "coachmen", "jayco", "forest river", "keystone",
+    "leisure unity", "unity platinum",
     "trailer", "tráiler", "utility trailer", "cargo trailer", "dump trailer", "flatbed", "car hauler", "enclosed", "campervan",
 
     // Industrial/Garden/Misc

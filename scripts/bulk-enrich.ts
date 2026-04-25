@@ -25,11 +25,21 @@ async function bulkEnrich() {
 
     console.log(`Found ${targets.length} cars that need details. Starting sync...`);
     const { matchListingToSubscriptions } = await import('../lib/alertMatcher');
+    const { chromium } = await import('playwright');
+
+    const browser = await chromium.launch({ 
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+    });
+    const context = await browser.newContext({
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+    });
+    const page = await context.newPage();
 
     let count = 0;
     for (const car of targets) {
         try {
-            const success = await enrichListingDetails(car.id);
+            const success = await enrichListingDetails(car.id, page);
             if (success) {
                 // Fetch the updated listing to get new make/model/etc.
                 const updated = await prisma.listing.findUnique({ where: { id: car.id } });
@@ -45,6 +55,7 @@ async function bulkEnrich() {
         }
     }
 
+    await browser.close();
     console.log('\n✨ Done! Refresh your site to see the full details.');
     await prisma.$disconnect();
 }

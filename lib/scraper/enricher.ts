@@ -1,19 +1,27 @@
-import { chromium } from 'playwright';
+import { chromium, Page } from 'playwright';
 import { PrismaClient } from '@prisma/client';
 import { parseListingText } from '../parser/listingParser';
 
 const prisma = new PrismaClient();
 
-export async function enrichListingDetails(listingId: string) {
+export async function enrichListingDetails(listingId: string, existingPage?: Page) {
   const listing = await prisma.listing.findUnique({ where: { id: listingId } });
   if (!listing || !listing.listingUrl) return null;
 
   console.log(`📡 Deep scanning car: ${listing.rawTitle}...`);
   
-  const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage();
+  let browser = null;
+  let page = existingPage;
   
   try {
+    if (!page) {
+      browser = await chromium.launch({ 
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+      });
+      page = await browser.newPage();
+    }
+    
     await page.goto(listing.listingUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
     await page.waitForTimeout(3000); // Wait for FB's slow loading
 
@@ -40,6 +48,7 @@ export async function enrichListingDetails(listingId: string) {
         transmission: parsed.transmission || listing.transmission,
         trim: parsed.trim || listing.trim,
         isCar: !parsed.isJunk,
+        isJunk: parsed.isJunk, // CRITICAL FIX: Save junk status!
         parseScore: parsed.parseScore,
         parsedAt: new Date(),
       }
@@ -50,6 +59,8 @@ export async function enrichListingDetails(listingId: string) {
     console.error(`Failed to enrich ${listingId}:`, err);
     return null;
   } finally {
-    await browser.close();
+    if (browser) {
+      await browser.close();
+    }
   }
 }
