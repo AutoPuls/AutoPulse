@@ -13,11 +13,16 @@ async function missionControl() {
 
             console.log(`\n[${new Date().toLocaleTimeString()}] 🛠️ Phase 2: Starting background detail repair...`);
             // Run the free enrichment for 20 minutes before next scrape
-            // We run it several times in a loop
             for (let i = 0; i < 4; i++) {
                 console.log(`   Sync batch ${i+1}/4...`);
                 execSync('npx ts-node scripts/bulk-enrich.ts', { stdio: 'inherit' });
-                // Short wait between local batches to be human-like
+                
+                // Every other batch, let's also check for sold cars (keep inventory clean)
+                if (i % 2 === 0) {
+                    console.log('   Checking for sold vehicles...');
+                    execSync('npx ts-node scripts/check-sold.ts', { stdio: 'inherit' });
+                }
+
                 await new Promise(r => setTimeout(r, 60000)); 
             }
 

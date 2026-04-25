@@ -74,8 +74,8 @@ export const ListingCard = memo(function ListingCard({ listing }: { listing: any
 
           {/* Sold overlay */}
           {listing.isSold && (
-            <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/60 backdrop-blur-[2px]">
-              <span className="px-4 py-2 rounded-lg bg-red-600 text-white text-[10px] font-black uppercase tracking-[0.2em] shadow-2xl transform -rotate-3 border-2 border-white/20">
+            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/40 backdrop-blur-[4px] transition-all duration-300">
+              <span className="px-5 py-2 rounded-xl bg-red-600 text-white text-[11px] font-black uppercase tracking-[0.25em] shadow-2xl border border-white/20 scale-110">
                 Vehicle Sold
               </span>
             </div>

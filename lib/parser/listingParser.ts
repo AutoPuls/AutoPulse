@@ -86,15 +86,16 @@ export function isJunkTitle(title: string, description: string = ""): boolean {
 
     // Off-road & Marine
     "atv", "utv", "quad", "four wheeler", "4 wheeler", "polaris", "can-am", "can am", "rzr", "maverick", "talon",
-    "boat", "vessel", "yacht", "sea-doo", "seadoo", "jet ski", "jetski", "pontoon", "outboard", "sailboat",
+    "boat", "vessel", "yacht", "sea-doo", "seadoo", "jet ski", "jetski", "pontoon", "outboard", "sailboat", "donzi",
 
     // RVs & Trailers
     "rv", "camper", "travel trailer", "fifth wheel", "motorhome", "winnebago", "coachmen", "jayco", "forest river", "keystone",
-    "trailer", "tráiler", "utility trailer", "cargo trailer", "dump trailer", "flatbed", "car hauler", "enclosed",
+    "trailer", "tráiler", "utility trailer", "cargo trailer", "dump trailer", "flatbed", "car hauler", "enclosed", "campervan",
 
-    // Industrial/Garden
+    // Industrial/Garden/Misc
     "tractor", "mower", "zero turn", "kubota", "john deere", "bobcat", "skid steer", "equipment", 
-    "parts only", "parting out", "shell only", "frame only", "wtb", "wtt"
+    "parts only", "parting out", "shell only", "frame only", "wtb", "wtt", "engine only", "transmission only", 
+    "lease", "rent", "wanted", "take over payments", "tire", "rim", "wheel"
   ];
 
   const hasNonCarKeyword = nonCarKeywords.some(k => new RegExp(`\\b${k}\\b`, "i").test(low));
