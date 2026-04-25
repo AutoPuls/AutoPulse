@@ -15,7 +15,9 @@ async function bulkEnrich() {
             OR: [
                 { make: 'Unknown' },
                 { mileage: null },
-                { description: { contains: 'pending' } }
+                { description: { contains: 'pending' } },
+                { rawTitle: '' },
+                { rawTitle: 'Vehicle' }
             ],
             isJunk: false
         },
