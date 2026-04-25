@@ -25,8 +25,14 @@ export async function enrichListingDetails(listingId: string, existingPage?: Pag
     await page.goto(listing.listingUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
     await page.waitForTimeout(3000); // Wait for FB's slow loading
 
-    const content = await page.content();
+    const rawPageTitle = await page.title();
+    let scrapedTitle = rawPageTitle.replace(/\s*\|\s*Facebook/i, '').trim();
     
+    // Fallback if title extraction is generic
+    if (!scrapedTitle || scrapedTitle.toLowerCase().includes('marketplace')) {
+        scrapedTitle = listing.rawTitle || '';
+    }
+
     // Extract description
     const description = await page.evaluate(() => {
         // Facebook's description is usually in a span with lots of text
@@ -35,11 +41,12 @@ export async function enrichListingDetails(listingId: string, existingPage?: Pag
         return descSpan ? descSpan.textContent : '';
     });
 
-    const parsed = parseListingText(listing.rawTitle || '', description || '');
+    const parsed = parseListingText(scrapedTitle || listing.rawTitle || '', description || '');
 
     const updated = await prisma.listing.update({
       where: { id: listingId },
       data: {
+        rawTitle: scrapedTitle || listing.rawTitle,
         description: description || listing.description,
         make: parsed.make !== "Unknown" ? parsed.make : listing.make,
         model: parsed.model !== "Unknown" ? parsed.model : listing.model,
