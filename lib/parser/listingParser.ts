@@ -87,15 +87,16 @@ export function isJunkTitle(title: string, description: string = ""): boolean {
     // Off-road & Marine
     "atv", "utv", "quad", "four wheeler", "4 wheeler", "polaris", "can-am", "can am", "rzr", "maverick", "talon",
     "trailmaster", "go kart", "gokart", "kart",
-    "boat", "vessel", "yacht", "sea-doo", "seadoo", "jet ski", "jetski", "pontoon", "outboard", "sailboat", "donzi",
+    "boat", "vessel", "yacht", "sea-doo", "seadoo", "jet ski", "jetski", "pontoon", "outboard", "sailboat", "donzi", "opti",
 
     // RVs & Trailers
     "rv", "camper", "travel trailer", "fifth wheel", "motorhome", "winnebago", "coachmen", "jayco", "forest river", "keystone",
-    "leisure unity", "unity platinum",
-    "trailer", "tráiler", "utility trailer", "cargo trailer", "dump trailer", "flatbed", "car hauler", "enclosed", "campervan",
+    "leisure unity", "unity platinum", "entegra", "thor motor", "tiffin", "grand design", "airstream", "coach",
 
-    // Industrial/Garden/Misc
-    "tractor", "mower", "zero turn", "kubota", "john deere", "bobcat", "skid steer", "equipment", 
+    // Semi-Trucks & Heavy Equipment
+    "mack", "peterbilt", "kenworth", "freightliner", "sterling", "western star", "semi truck", "semi-truck", "tractor trailer",
+    "caterpillar", "\\bcat\\b", "skid steer", "excavator", "forklift", "loader", "backhoe", "jcb", "komatsu", "yanmar",
+    "kikker",
     "parts only", "parting out", "shell only", "frame only", "wtb", "wtt", "engine only", "transmission only", 
     "lease", "rent", "wanted", "take over payments", "tire", "rim", "wheel"
   ];
