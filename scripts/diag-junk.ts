@@ -28,13 +28,15 @@ async function main() {
       id: true,
       rawTitle: true,
       make: true,
-      model: true
+      model: true,
+      isCar: true,
+      isJunk: true
     }
   });
 
   console.log(`Found ${listings.length} matches.`);
   listings.forEach(l => {
-    console.log(`[${l.id}] ${l.rawTitle} (${l.make} ${l.model})`);
+    console.log(`[${l.id}] ${l.rawTitle} (${l.make} ${l.model}) | isCar: ${l.isCar}, isJunk: ${l.isJunk}`);
   });
 }
 

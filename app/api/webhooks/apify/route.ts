@@ -93,7 +93,7 @@ export async function POST(req: Request) {
           features: parsed.features,
           vin: parsed.vin,
           isJunk: parsed.isJunk,
-          isCar: !parsed.isJunk, // Accept any non-junk listing as a car even if make is unknown
+          isCar: !parsed.isJunk && parsed.make !== "Unknown",
           parseScore: parsed.parseScore,
           parsedAt: new Date(),
         };

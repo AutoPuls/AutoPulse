@@ -56,7 +56,7 @@ export async function enrichListingDetails(listingId: string, existingPage?: Pag
         mileage: parsed.mileage || listing.mileage,
         transmission: parsed.transmission || listing.transmission,
         trim: parsed.trim || listing.trim,
-        isCar: !parsed.isJunk,
+        isCar: !parsed.isJunk && (parsed.make !== "Unknown" || listing.make !== "Unknown"),
         isJunk: parsed.isJunk, // CRITICAL FIX: Save junk status!
         parseScore: parsed.parseScore,
         parsedAt: new Date(),

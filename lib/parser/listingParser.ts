@@ -78,31 +78,40 @@ export function isJunkTitle(title: string, description: string = ""): boolean {
   if (low === "marketplace listing" && description.length < 20) return true;
 
   // 2. Non-Car Vehicle Keywords (Aggressive but refined)
-  const nonCarKeywords = [
+  const nonCarWords = [
     // Two-wheelers
     "motorcycle", "motercycle", "moto", "scooter", "moped", "dirt bike", "pit bike", "ebike", "bicycle", "bycycle", "bike",
     "kawasaki", "yamaha", "harley", "davidson", "ducati", "triumph", "vespa", "grom", "hayabusa", "ninja", "ktm", "aprilia",
-    "\\bcbr\\b", "\\bgsxr\\b", "\\b250r\\b", "\\b600r\\b", "\\b1000r\\b", "\\d+cc\\b",
+    "shadow", "goldwing", "rebel", "sportster", "softail", "dyna", "road king", "street glide", "electra glide", "v-rod", "cvo",
+    "sur-ron", "surron", "talaria", "mototec", "dirtbike", "minibike",
 
     // Off-road & Marine
     "atv", "utv", "quad", "four wheeler", "4 wheeler", "polaris", "can-am", "can am", "rzr", "maverick", "talon",
     "trailmaster", "go kart", "gokart", "kart",
-    "boat", "vessel", "yacht", "sea-doo", "seadoo", "jet ski", "jetski", "pontoon", "outboard", "sailboat", "donzi", "opti",
+    "boat", "vessel", "yacht", "sea-doo", "seadoo", "sea doo", "jet ski", "jetski", "pontoon", "outboard", "sailboat", "donzi", "opti",
+    "cobalt", "princecraft", "bayliner", "boston whaler", "nordic", "axopar", "sea ray", "chaparral", "lund", "tracker", "malibu", "mastercraft", "nautique", "wave runner", "waverunner", "jet boat",
 
     // RVs & Trailers
     "rv", "camper", "travel trailer", "fifth wheel", "motorhome", "winnebago", "coachmen", "jayco", "forest river", "keystone",
     "leisure unity", "unity platinum", "entegra", "thor motor", "tiffin", "grand design", "airstream", "coach",
+    "pleasureway", "fleetwood", "coleman",
 
     // Semi-Trucks & Heavy Equipment
     "mack", "peterbilt", "kenworth", "freightliner", "sterling", "western star", "semi truck", "semi-truck", "tractor trailer",
-    "caterpillar", "\\bcat\\b", "skid steer", "excavator", "forklift", "loader", "backhoe", "jcb", "komatsu", "yanmar",
-    "kikker",
+    "caterpillar", "skid steer", "excavator", "forklift", "loader", "backhoe", "jcb", "komatsu", "yanmar",
+    "kikker", "tractor", "mower", "trailer", "genie", "food trailer", "foodtrailer",
     "parts only", "parting out", "shell only", "frame only", "wtb", "wtt", "engine only", "transmission only", 
     "lease", "rent", "wanted", "take over payments", "tire", "rim", "wheel"
   ];
 
-  const hasNonCarKeyword = nonCarKeywords.some(k => new RegExp(`\\b${k}\\b`, "i").test(low));
-  if (hasNonCarKeyword) return true;
+  const nonCarPatterns = [
+    "\\bcbr", "\\bgsxr", "\\b250r", "\\b600r", "\\b1000r", "\\d+cc\\b", "\\bcat\\b"
+  ];
+
+  const hasNonCarWord = nonCarWords.some(w => new RegExp(`\\b${w}\\b`, "i").test(low));
+  const hasNonCarPattern = nonCarPatterns.some(p => new RegExp(p, "i").test(low));
+
+  if (hasNonCarWord || hasNonCarPattern) return true;
 
   // 3. Buyer Intent Filter (WTB/WTT)
   // Only junk if at the start of title (e.g. "Looking for BMW") 
