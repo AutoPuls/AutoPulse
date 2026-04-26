@@ -42,10 +42,10 @@ export async function POST(req: Request) {
         }
 
         // 2. ID and URL construction
-        const externalId = item.id || item.url?.match(/item\/(\d+)/)?.[1] || Math.random().toString();
+        const externalId = (item.id || item.listingUrl?.match(/item\/(\d+)/)?.[1] || item.url?.match(/item\/(\d+)/)?.[1] || Math.random().toString()).toString();
         const listingUrl = externalId.match(/^\d+$/) 
           ? `https://www.facebook.com/marketplace/item/${externalId}/`
-          : item.url || '';
+          : item.listingUrl || item.url || '';
 
         // 3. Price construction (Cents)
         const priceCents = item.listing_price?.amount 
