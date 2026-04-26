@@ -7,9 +7,9 @@ import { ApifyClient } from 'apify-client';
 import { PrismaClient } from '@prisma/client';
 
 // ─── SAFETY CONFIG ────────────────────────────────────────────────────────────
-const MAX_URLS_PER_RUN = 24;           // Increased for more city coverage
-const MAX_RESULTS_PER_URL = 500;      // Higher limit per URL
-const RESULTS_LIMIT = 5000;           // Goal: 5000 cars per run
+const MAX_RESULTS_PER_URL = 1000;         // Increased to fetch older listings (up to 30 days)
+const MAX_URLS_PER_RUN = 24;
+const RESULTS_LIMIT = 15000;          // Expanded overall throughput
 const USE_RESIDENTIAL = true;         // Use high-quality proxies for more cities
 const DRY_RUN = process.argv.includes('--dry-run'); // Pass --dry-run to preview only
 // ──────────────────────────────────────────────────────────────────────────────

@@ -61,8 +61,22 @@ export async function enrichListingDetails(listingId: string, existingPage?: Pag
         mileage: parsed.mileage || listing.mileage,
         transmission: parsed.transmission || listing.transmission,
         trim: parsed.trim || listing.trim,
+        
+        // Save the expanded specs
+        bodyStyle: parsed.bodyStyle || listing.bodyStyle,
+        driveType: parsed.driveType || listing.driveType,
+        engine: parsed.engine || listing.engine,
+        fuelType: parsed.fuelType || listing.fuelType,
+        color: parsed.color || listing.color,
+        doors: parsed.doors || listing.doors,
+        titleStatus: parsed.titleStatus || listing.titleStatus,
+        condition: parsed.condition || listing.condition,
+        accidents: parsed.accidents !== null ? parsed.accidents : listing.accidents,
+        owners: parsed.owners || listing.owners,
+        features: parsed.features && parsed.features.length > 0 ? parsed.features : listing.features,
+        
         isCar: !parsed.isJunk && (parsed.make !== "Unknown" || listing.make !== "Unknown"),
-        isJunk: parsed.isJunk, // CRITICAL FIX: Save junk status!
+        isJunk: parsed.isJunk,
         parseScore: parsed.parseScore,
         parsedAt: new Date(),
       }
